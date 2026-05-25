@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: officeverse-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false   # Set this in Render dashboard to your Vercel URL
+    healthCheckPath: /api/health
