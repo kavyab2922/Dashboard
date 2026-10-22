@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BadgeCheck, CalendarDays, Edit3, Globe2, Mail, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
+import { BadgeCheck, CalendarDays, Edit3, Globe2, Mail, MapPin, ShieldCheck, Sparkles, Camera } from 'lucide-react';
 import { Avatar, Button, FormField, Modal, PageTitle, Panel, Tag } from '../components/common/UI';
 import { currentEmployee } from '../data/employees';
 import { useApp } from '../context/AppContext';
@@ -9,8 +9,156 @@ export default function Profile() {
   const [editOpen, setEditOpen] = useState(false);
   const [roleTitle, setRoleTitle] = useState(currentEmployee.role);
   const [location, setLocation] = useState(currentEmployee.location);
-  const [bio, setBio] = useState('Curious by nature, collaborative by choice. I like finding thoughtful ways to make everyday work a little better.');
+  const [bio, setBio] = useState('Passionate about crafting intuitive, accessible enterprise interfaces. Focused on scalable design systems and cross-functional collaboration.');
   const [draft, setDraft] = useState({});
-  const save = (event) => { event.preventDefault(); setRoleTitle(draft.roleTitle || roleTitle); setLocation(draft.location || location); setBio(draft.bio ?? bio); setEditOpen(false); setToast('Profile preview updated for this session.'); };
-  return <><PageTitle eyebrow="A LITTLE MORE ABOUT YOU" title="My profile" description="Your employee profile preview. Personal changes are local to this demo." actions={<Button onClick={()=>{setDraft({roleTitle,location,bio});setEditOpen(true);}}><Edit3 size={15}/> Edit profile</Button>}/><div className="profile-hero"><div className="profile-cover"><div className="profile-cover-orbit orbit-a"/><div className="profile-cover-orbit orbit-b"/><span>✦</span></div><div className="profile-hero-person"><Avatar name={currentEmployee.name} initials={currentEmployee.initials} color="coral" size="xxl"/><div><div className="profile-name-row"><h2>{currentEmployee.name}</h2><BadgeCheck size={19}/><Tag tone="mint">DEMO PROFILE</Tag></div><p>{roleTitle} <span>·</span> {currentEmployee.team}</p><div className="profile-meta-row"><span><MapPin size={14}/>{location}</span><span><Mail size={14}/>{currentEmployee.email}</span></div></div></div><div className="profile-hero-side"><span><Sparkles size={17}/></span><strong>Keep growing</strong><small>Your journey is uniquely yours.</small></div></div><div className="profile-content-grid"><div className="profile-main-column"><Panel className="profile-about"><div className="profile-section-head"><h3>About me</h3><button className="icon-button" aria-label="Edit about me" onClick={()=>{setDraft({roleTitle,location,bio});setEditOpen(true);}}><Edit3 size={15}/></button></div><p>{bio}</p><div className="profile-interest-tags"><span>Design thinking</span><span>Learning</span><span>Teamwork</span><span>Curiosity</span></div></Panel><Panel className="profile-info"><div className="profile-section-head"><h3>Personal information</h3><span className="profile-private"><ShieldCheck size={13}/> Demo only</span></div><div className="profile-info-grid"><div><small>FULL NAME</small><strong>{currentEmployee.name}</strong></div><div><small>TEAM</small><strong>{currentEmployee.team}</strong></div><div><small>WORK LOCATION</small><strong>{location}</strong></div><div><small>EMAIL</small><strong>{currentEmployee.email}</strong></div><div><small>ROLE</small><strong>{roleTitle}</strong></div><div><small>TIME ZONE</small><strong>Asia/Kolkata (demo)</strong></div></div></Panel></div><div className="profile-side-column"><Panel className="profile-growth"><div className="growth-top"><span><Sparkles size={18}/></span><Tag tone="purple">YOUR JOURNEY</Tag></div><h3>Progress looks good on you.</h3><p>Explore small ways to celebrate your own progress.</p><div className="growth-metric"><span><strong>08</strong><small>Achievements</small></span><div className="growth-meter"><i/></div></div><div className="growth-metric"><span><strong>12</strong><small>Kudos received</small></span><div className="growth-meter purple"><i/></div></div><Button variant="secondary" onClick={()=>setToast('Journey insights are illustrative demo metrics.')}>View journey</Button></Panel><Panel className="profile-milestone"><span className="milestone-icon"><CalendarDays size={20}/></span><span className="milestone-label">NEXT MILESTONE</span><h3>Keep learning</h3><p>Pick one resource and make a little progress this week.</p><Button variant="ghost" onClick={()=>window.location.assign('/learning')}>Explore learning <span>→</span></Button></Panel></div></div><p className="demo-inline-note">The profile uses fictional demo details and does not connect to an employee directory.</p><Modal open={editOpen} onClose={()=>setEditOpen(false)} title="Edit profile preview" description="These changes are temporary demo values."><form className="form-stack" onSubmit={save}><FormField label="Role title"><input value={draft.roleTitle ?? roleTitle} onChange={(e)=>setDraft((d)=>({...d,roleTitle:e.target.value}))}/></FormField><FormField label="Work location"><input value={draft.location ?? location} onChange={(e)=>setDraft((d)=>({...d,location:e.target.value}))}/></FormField><FormField label="About me"><textarea rows={4} value={draft.bio ?? bio} onChange={(e)=>setDraft((d)=>({...d,bio:e.target.value}))}/></FormField><div className="modal-actions"><Button type="button" variant="secondary" onClick={()=>setEditOpen(false)}>Cancel</Button><Button type="submit">Save preview</Button></div></form></Modal></>;
+
+  const save = (event) => {
+    event.preventDefault();
+    setRoleTitle(draft.roleTitle || roleTitle);
+    setLocation(draft.location || location);
+    setBio(draft.bio ?? bio);
+    setEditOpen(false);
+    setToast('Profile details updated.');
+  };
+
+  return (
+    <>
+      <PageTitle
+        eyebrow="YOUR WORKPLACE IDENTITY"
+        title="My profile"
+        description="Employee profile overview, department records and professional journey."
+        actions={
+          <Button onClick={() => { setDraft({ roleTitle, location, bio }); setEditOpen(true); }}>
+            <Edit3 size={15}/> Edit profile
+          </Button>
+        }
+      />
+
+      <div className="profile-hero">
+        <div className="profile-cover">
+          {currentEmployee.cover && (
+            <img src={currentEmployee.cover} alt="Profile Cover" className="profile-cover-img" />
+          )}
+          <div className="profile-cover-overlay" />
+        </div>
+
+        <div className="profile-hero-person">
+          <div className="profile-avatar-wrap">
+            <Avatar name={currentEmployee.name} initials={currentEmployee.initials} size="xxl" src={currentEmployee.avatar}/>
+          </div>
+          <div className="profile-hero-info">
+            <div className="profile-name-row">
+              <h2>{currentEmployee.name}</h2>
+              <BadgeCheck size={20} className="profile-verified-badge" />
+              <Tag tone="mint">FULL-TIME EMPLOYEE</Tag>
+            </div>
+            <p>{roleTitle} <span>·</span> {currentEmployee.team}</p>
+            <div className="profile-meta-row">
+              <span><MapPin size={14}/> {location}</span>
+              <span><Mail size={14}/> {currentEmployee.email}</span>
+              <span><CalendarDays size={14}/> Joined Oct 2022</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="profile-content-grid">
+        <div className="profile-main-column">
+          <Panel className="profile-about">
+            <div className="profile-section-head">
+              <h3>About me</h3>
+              <button className="icon-button" aria-label="Edit about me" onClick={() => { setDraft({ roleTitle, location, bio }); setEditOpen(true); }}>
+                <Edit3 size={15}/>
+              </button>
+            </div>
+            <p>{bio}</p>
+            <div className="profile-interest-tags">
+              <span>Design Systems</span>
+              <span>React & TypeScript</span>
+              <span>Accessibility</span>
+              <span>User Research</span>
+              <span>Mentorship</span>
+            </div>
+          </Panel>
+
+          <Panel className="profile-info">
+            <div className="profile-section-head">
+              <h3>Professional Details</h3>
+              <span className="profile-private"><ShieldCheck size={13}/> Verified HR Record</span>
+            </div>
+            <div className="profile-info-grid">
+              <div>
+                <small>LEGAL NAME</small>
+                <strong>{currentEmployee.name}</strong>
+              </div>
+              <div>
+                <small>DEPARTMENT</small>
+                <strong>{currentEmployee.team}</strong>
+              </div>
+              <div>
+                <small>OFFICE LOCATION</small>
+                <strong>{location}</strong>
+              </div>
+              <div>
+                <small>CORPORATE EMAIL</small>
+                <strong>{currentEmployee.email}</strong>
+              </div>
+              <div>
+                <small>JOB TITLE</small>
+                <strong>{roleTitle}</strong>
+              </div>
+              <div>
+                <small>TIMEZONE</small>
+                <strong>Asia/Kolkata (IST · UTC+5:30)</strong>
+              </div>
+            </div>
+          </Panel>
+        </div>
+
+        <div className="profile-side-column">
+          <Panel className="profile-growth">
+            <div className="growth-top">
+              <span><Sparkles size={18}/></span>
+              <Tag tone="purple">YOUR JOURNEY</Tag>
+            </div>
+            <h3>Excellence in practice.</h3>
+            <p>Your performance milestones and achievements unlocked this year.</p>
+            <div className="growth-metric">
+              <span><strong>08</strong><small>Milestones Unlocked</small></span>
+              <div className="growth-meter"><i style={{width:'80%'}}/></div>
+            </div>
+            <div className="growth-metric">
+              <span><strong>12</strong><small>Kudos Received</small></span>
+              <div className="growth-meter purple"><i style={{width:'68%'}}/></div>
+            </div>
+          </Panel>
+
+          <Panel className="profile-milestone">
+            <span className="milestone-icon"><CalendarDays size={20}/></span>
+            <span className="milestone-label">UPCOMING MILESTONE</span>
+            <h3>4th Work Anniversary</h3>
+            <p>Celebrate 4 years of impactful engineering with the team in October 2026.</p>
+          </Panel>
+        </div>
+      </div>
+
+      <Modal open={editOpen} onClose={() => setEditOpen(false)} title="Edit profile" description="Update your public profile display information.">
+        <form className="form-stack" onSubmit={save}>
+          <FormField label="Role title">
+            <input value={draft.roleTitle ?? roleTitle} onChange={(e) => setDraft((d) => ({ ...d, roleTitle: e.target.value }))}/>
+          </FormField>
+          <FormField label="Work location">
+            <input value={draft.location ?? location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))}/>
+          </FormField>
+          <FormField label="About me bio">
+            <textarea rows={4} value={draft.bio ?? bio} onChange={(e) => setDraft((d) => ({ ...d, bio: e.target.value }))}/>
+          </FormField>
+          <div className="modal-actions">
+            <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button type="submit">Save changes</Button>
+          </div>
+        </form>
+      </Modal>
+    </>
+  );
 }

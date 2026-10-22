@@ -26,16 +26,28 @@ export function AppProvider({ children }) {
   const [savedCourses, setSavedCourses] = useState(persisted.savedCourses || []);
   const [joinedGroups, setJoinedGroups] = useState(persisted.joinedGroups || []);
   const [theme, setTheme] = useState(persisted.theme || 'light');
+  const [colorTheme, setColorTheme] = useState(persisted.colorTheme || 'sapphire');
   const [role, setRole] = useState(persisted.role || 'Employee');
   const [toast, setToast] = useState('');
 
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ announcements, events, quickLinks, contacts, kudos, notifications, savedCourses, joinedGroups, theme, role })); } catch { /* demo state remains in memory if storage is unavailable */ }
-  }, [announcements, events, quickLinks, contacts, kudos, notifications, savedCourses, joinedGroups, theme, role]);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        announcements, events, quickLinks, contacts, kudos, notifications,
+        savedCourses, joinedGroups, theme, colorTheme, role,
+      }));
+    } catch {
+      /* demo state remains in memory if storage is unavailable */
+    }
+  }, [announcements, events, quickLinks, contacts, kudos, notifications, savedCourses, joinedGroups, theme, colorTheme, role]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.color = colorTheme;
+  }, [colorTheme]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -54,7 +66,7 @@ export function AppProvider({ children }) {
   const value = {
     announcements, setAnnouncements, events, setEvents, quickLinks, setQuickLinks, contacts, setContacts,
     kudos, setKudos, notifications, setNotifications, savedCourses, toggleSavedCourse,
-    joinedGroups, setJoinedGroups, theme, setTheme, role, setRole, toast, setToast,
+    joinedGroups, setJoinedGroups, theme, setTheme, colorTheme, setColorTheme, role, setRole, toast, setToast,
     markRead, markAllRead, addKudos, courses: courseCatalogue,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

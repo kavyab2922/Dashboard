@@ -5,6 +5,64 @@ import { currentEmployee, birthdays } from '../../data/employees';
 
 export default function WelcomeBanner({ onKudos }) {
   const today = new Date();
-  const date = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'long' }).format(today);
-  return <section className="welcome-banner"><div className="welcome-backdrop-shape shape-one"/><div className="welcome-backdrop-shape shape-two"/><div className="welcome-copy"><div className="welcome-date"><span className="welcome-live-dot" />{date}<span className="date-separator">/</span><span>YOUR DAILY ORBIT</span></div><h2>{getGreeting()}, {currentEmployee.name.split(' ')[0]} <span className="wave">✦</span></h2><p>Make today meaningful. Catch up with your people, discover something new, and celebrate the little wins.</p><div className="welcome-actions"><button className="btn btn-white" onClick={onKudos}><Gift size={16} /> Give Kudos</button><Link className="btn btn-glass" to="/recognition">Explore achievements <ArrowRight size={16} /></Link></div><div className="welcome-footnote"><Sparkles size={13} /> A little progress adds up to something brilliant.</div></div><div className="welcome-side-art" aria-hidden="true"><div className="welcome-art-ring ring-back"/><div className="welcome-art-ring ring-front"/><div className="welcome-art-orbit orbit-a"/><div className="welcome-art-orbit orbit-b"/><div className="welcome-art-card"><div className="mini-sun"><Star size={21} fill="currentColor" /></div><span>YOUR IMPACT</span><strong>Every day<br/>counts.</strong><i>✦</i></div><div className="welcome-art-bubble bubble-a"><Gift size={19} /></div><div className="welcome-art-bubble bubble-b"><CalendarDays size={19} /></div><div className="welcome-art-dot dot-a"/><div className="welcome-art-dot dot-b"/></div><div className="welcome-celebration-note"><span className="mini-avatar-stack"><i>AS</i><i>MN</i><i>PM</i></span><span><strong>{birthdays.length} celebrations</strong><small>to look forward to</small></span></div></section>;
+  const date = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }).format(today);
+
+  return (
+    <section className="welcome-banner">
+      <div className="welcome-glow-orb glow-top-right" />
+      <div className="welcome-glow-orb glow-bottom-left" />
+
+      <div className="welcome-copy">
+        <div className="welcome-date-badge">
+          <span className="welcome-live-dot" />
+          <span>{date}</span>
+          <span className="date-separator">/</span>
+          <span className="badge-orbit-label">WORKSPACE PORTAL</span>
+        </div>
+
+        <h2>
+          {getGreeting()}, {currentEmployee.name.split(' ')[0]} <span className="greeting-sparkle">✦</span>
+        </h2>
+        <p>
+          Welcome back to your employee hub. Catch up on announcements, recognize colleagues, and access everyday tools.
+        </p>
+
+        <div className="welcome-actions">
+          <button className="btn btn-white" onClick={onKudos}>
+            <Gift size={16} /> Send Kudos
+          </button>
+          <Link className="btn btn-glass" to="/recognition">
+            View Recognition Feed <ArrowRight size={16} />
+          </Link>
+        </div>
+
+        <div className="welcome-footnote">
+          <Sparkles size={14} /> <span>Your team celebrated 6 achievements this week.</span>
+        </div>
+      </div>
+
+      <div className="welcome-side-widget">
+        <div className="welcome-stat-card">
+          <div className="welcome-card-header">
+            <span className="welcome-card-icon"><Star size={18} /></span>
+            <span className="welcome-card-label">TEAM SPOTLIGHT</span>
+          </div>
+          <strong>Every contribution counts.</strong>
+          <p>Collaborate, grow, and shape what's next together.</p>
+        </div>
+
+        <div className="welcome-celebration-pill">
+          <span className="mini-avatar-stack">
+            <i className="avatar-chip">MN</i>
+            <i className="avatar-chip">BK</i>
+            <i className="avatar-chip">PM</i>
+          </span>
+          <div className="celebration-text">
+            <strong>{birthdays.length} upcoming celebrations</strong>
+            <small>Recognize milestones with your team</small>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
 }

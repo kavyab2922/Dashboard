@@ -3,7 +3,7 @@ import { Bot, ChevronDown, MessageCircle, Send, Sparkles, X } from 'lucide-react
 import { useNavigate } from 'react-router-dom';
 import { faqs } from '../../data/faqs';
 
-const starterText = 'Hi Arjun! I can help you find the right HR resource. What would you like to know?';
+const starterText = 'Hi Kavya! I can help you navigate HR policies, benefits, leave, and contacts. What would you like to know?';
 const suggestions = ['Where can I review leave information?', 'How do I contact HR?', 'Where can I find my payslip?'];
 
 export default function FAQChatbot() {
