@@ -1,0 +1,10 @@
+export const faqs = [
+  { id: 'f1', category: 'Onboarding', question: 'How do I get started as a new employee?', answer: 'This prototype does not contain official onboarding instructions. Check your onboarding email or contact the People Operations team through Quick Connect for the approved checklist.' },
+  { id: 'f2', category: 'Leave & Attendance', question: 'Where can I review leave information?', answer: 'Open the Leave Management quick link after your company provides the approved destination. For current eligibility, balances and policy details, contact HR; no leave data is connected in this prototype.' },
+  { id: 'f3', category: 'Working Hours', question: 'What are the company working hours?', answer: 'Working hours can vary by team, role and location. Please check your official team guidance or ask your manager. This demo cannot confirm an official schedule.' },
+  { id: 'f4', category: 'Payroll', question: 'Where can I find my payslip?', answer: 'Use the verified payroll or employee self-service system provided by your company. This demo does not access payslips or payroll information.' },
+  { id: 'f5', category: 'Documents', question: 'How can I request an employment letter?', answer: 'Contact the People Operations team through Quick Connect and ask about the approved document request process.' },
+  { id: 'f6', category: 'Systems', question: 'Who should I contact if a company portal is not working?', answer: 'Check the approved IT support instructions for your organization. You can also ask your manager which support channel to use. The links in this prototype may still be placeholders.' },
+  { id: 'f7', category: 'Policies', question: 'Where can I read company policies?', answer: 'Use the Company Policies quick link after its official destination is configured, or contact HR for the approved policy repository.' },
+  { id: 'f8', category: 'HR Contacts', question: 'How do I contact HR?', answer: 'Open Quick Connect to find a sample contact by HR topic. The contacts shown here are fictional demo records and should be replaced with approved company details.' },
+];

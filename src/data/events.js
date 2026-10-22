@@ -1,0 +1,6 @@
+export const initialEvents = [
+  { id: 'ev1', title: 'Coffee & Connect', date: '2026-10-23', time: '11:30 AM', venue: 'Collaboration lounge · sample', category: 'Community', description: 'A relaxed chance to meet colleagues and share what you are working on.', rsvp: '', color: 'mint' },
+  { id: 'ev2', title: 'Learning Lab: Better presentations', date: '2026-10-27', time: '3:00 PM', venue: 'Online · link to be added', category: 'Learning', description: 'A short practice session for communicating ideas with clarity.', rsvp: '', color: 'purple' },
+  { id: 'ev3', title: 'Monthly all-hands', date: '2026-10-29', time: '4:00 PM', venue: 'Online · link to be confirmed', category: 'Company', description: 'Company updates, team recognitions and a live Q&A.', rsvp: '', color: 'blue' },
+  { id: 'ev4', title: 'Wellbeing break', date: '2026-11-03', time: '12:15 PM', venue: 'Meeting room / online', category: 'Wellbeing', description: 'A low-pressure pause for stretching, breathing and recharging.', rsvp: '', color: 'gold' },
+];
