@@ -1,4 +1,4 @@
-# HROrbit — Phase 1 Employee Engagement Dashboard
+# HROrbit — Phase 1 Employee Engagement Dashboard frontend
 
 A standalone, frontend-only React + Vite prototype for an employee-facing HR portal. It is designed to be reviewed independently before UI integration into the existing HROrbit application. This project does **not** include a production backend, database, company SSO, or real employee data.
 
