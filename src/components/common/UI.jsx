@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Search, Plus, ArrowUpRight, Sparkles } from 'lucide-react';
-import { employees } from '../../data/employees';
+import { employees as fallbackEmployees } from '../../data/employees';
+import { useApp } from '../../context/AppContext';
 
 export function PageTitle({ eyebrow, title, description, actions }) {
   return (
@@ -47,8 +48,9 @@ export function Tag({ children, tone = 'slate' }) {
 export function Avatar({ name = 'Demo User', initials, color = 'blue', size = '', src }) {
   const [imgError, setImgError] = useState(false);
 
-  // Auto-resolve avatar from employees data if available
-  const match = employees.find((e) => e.name === name || (initials && e.initials === initials));
+  const { employees: directory = [] } = useApp();
+  const people = directory.length ? directory : fallbackEmployees;
+  const match = people.find((e) => e.name === name || (initials && e.initials === initials));
   const resolvedSrc = src || match?.avatar;
   const computed = initials || name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
 

@@ -1,38 +1,40 @@
-import { ArrowUpRight, Award, CalendarDays, Heart, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Award, CalendarDays, Heart, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const items = [
-  {
-    title: 'My achievements',
-    value: '08',
-    caption: '2 unlocked this quarter',
-    icon: Award,
-    tone: 'purple',
-    to: '/recognition',
-    badge: '+2 this month',
-  },
-  {
-    title: 'Kudos received',
-    value: '12',
-    caption: 'Recent peer appreciation',
-    icon: Heart,
-    tone: 'rose',
-    to: '/recognition',
-    badge: '3 new',
-  },
-  {
-    title: 'PTO & leave balance',
-    value: '14.5',
-    suffix: 'days',
-    caption: 'Available annual vacation',
-    icon: CalendarDays,
-    tone: 'blue',
-    to: '/quick-links',
-    badge: 'Approved',
-  },
-];
+import { useApp } from '../../context/AppContext';
 
 export default function SummaryCards() {
+  const { dashboardSummary } = useApp();
+  const items = [
+    {
+      title: 'My achievements',
+      value: dashboardSummary?.achievements?.value || '08',
+      caption: dashboardSummary?.achievements?.caption || '2 unlocked this quarter',
+      icon: Award,
+      tone: 'purple',
+      to: '/recognition',
+      badge: dashboardSummary?.achievements?.badge || '+2 this month',
+    },
+    {
+      title: 'Kudos received',
+      value: dashboardSummary?.kudosReceived?.value || '12',
+      caption: dashboardSummary?.kudosReceived?.caption || 'Recent peer appreciation',
+      icon: Heart,
+      tone: 'rose',
+      to: '/recognition',
+      badge: dashboardSummary?.kudosReceived?.badge || '3 new',
+    },
+    {
+      title: 'PTO & leave balance',
+      value: dashboardSummary?.leaveBalance?.value || '14.5',
+      suffix: dashboardSummary?.leaveBalance?.suffix || 'days',
+      caption: dashboardSummary?.leaveBalance?.caption || 'Available annual vacation',
+      icon: CalendarDays,
+      tone: 'blue',
+      to: '/quick-links',
+      badge: dashboardSummary?.leaveBalance?.badge || 'Approved',
+    },
+  ];
+
   return (
     <div className="summary-grid">
       {items.map((item) => (

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Activity, Bell, ChevronDown, Command, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { Avatar } from '../common/UI';
 
@@ -11,11 +11,11 @@ const palettes = [
   { id: 'amber', label: 'Honey Amber', color: '#d97706', desc: 'Warm & Dynamic' },
 ];
 
-export default function Header({ pageTitle, onMenuClick }) {
+export default function Header() {
   const {
     theme, setTheme, colorTheme, setColorTheme, role, setRole,
     announcements, events, quickLinks, contacts, courses,
-    notifications, markRead, markAllRead, setToast
+    notifications, markRead, markAllRead, setToast, currentEmployee, logout,
   } = useApp();
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -55,17 +55,11 @@ export default function Header({ pageTitle, onMenuClick }) {
 
   return (
     <header className="topbar">
-      <button className="mobile-menu icon-button" aria-label="Open navigation" onClick={onMenuClick}>
-        <Menu size={20} />
-      </button>
-
-      <div className="topbar-title">
-        <span className="topbar-kicker">YOUR WORKPLACE, CONNECTED</span>
-        <h1>{pageTitle || 'Dashboard'}</h1>
-      </div>
-
-      <div className="topbar-tools">
-        {/* Global Search */}
+      <Link to="/" className="topbar-brand">
+        <span className="topbar-brand-mark"><Activity size={21} strokeWidth={2.6} /></span>
+        <span className="topbar-brand-name">HROrbit</span>
+      </Link>
+      <div className="topbar-search">
         <div className={`global-search-wrap ${searchOpen ? 'searching' : ''}`}>
           <Search size={17} />
           <input
@@ -108,7 +102,8 @@ export default function Header({ pageTitle, onMenuClick }) {
             </>
           )}
         </div>
-
+      </div>
+      <div className="topbar-tools">
         {/* Color Palette Switcher */}
         <div className="topbar-popover-wrap">
           <button
@@ -220,24 +215,27 @@ export default function Header({ pageTitle, onMenuClick }) {
             className="profile-trigger"
             onClick={() => { closeAll(); setProfileOpen(!profileOpen); }}
           >
-            <Avatar name="B Kavya" initials="BK" color="blue" />
+            <Avatar name={currentEmployee.name} initials={currentEmployee.initials} color={currentEmployee.color} src={currentEmployee.avatar} />
             <span className="profile-trigger-copy">
-              <strong>B Kavya</strong>
-              <small>{role} · Demo</small>
+              <strong>{currentEmployee.name}</strong>
+              <small>{role}</small>
             </span>
             <ChevronDown size={15} />
           </button>
           {profileOpen && (
             <div className="popover-panel profile-menu">
               <div className="profile-menu-top">
-                <Avatar name="B Kavya" initials="BK" color="blue" size="lg"/>
+                <Avatar name={currentEmployee.name} initials={currentEmployee.initials} color={currentEmployee.color} size="lg" src={currentEmployee.avatar}/>
                 <div>
-                  <strong>B Kavya</strong>
-                  <small>Product Design · Demo profile</small>
+                  <strong>{currentEmployee.name}</strong>
+                  <small>{currentEmployee.role} · {currentEmployee.team}</small>
                 </div>
               </div>
               <button onClick={() => { navigate('/profile'); setProfileOpen(false); }}>
                 My profile <ArrowUpRight size={14} />
+              </button>
+              <button onClick={() => { logout(); setProfileOpen(false); navigate('/login'); }}>
+                Sign out
               </button>
               <div className="role-switch">
                 <label htmlFor="demo-role">Demo view</label>

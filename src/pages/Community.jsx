@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowUpRight, CalendarDays, Check, Compass, Gamepad2, Heart, Mountain, Music, Palette, Sprout, Users } from 'lucide-react';
-import { PageTitle, Panel, Tag, Button } from '../components/common/UI';
+import { Panel, Tag, Button } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
 const groups = [
@@ -86,12 +86,6 @@ export default function Community() {
 
   return (
     <>
-      <PageTitle
-        eyebrow="FIND YOUR PEOPLE"
-        title="Employee community"
-        description="Shared interests, social clubs and collaborative circles that bring our workplace culture to life."
-      />
-
       <div className="community-hero">
         <div className="community-hero-copy">
           <Tag tone="purple">BETTER TOGETHER</Tag>

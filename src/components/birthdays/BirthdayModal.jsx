@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Cake, PartyPopper, Sparkles, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { currentEmployee } from '../../data/employees';
 import { isSameMonthDay } from '../../utils/format';
+import { useApp } from '../../context/AppContext';
 
 export default function BirthdayModal() {
+  const { currentEmployee } = useApp();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -13,12 +14,12 @@ export default function BirthdayModal() {
 
     const today = new Date();
     const dismissedKey = `hrobit-birthday-dismissed-${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    if (isSameMonthDay(currentEmployee.birthday, today) && !sessionStorage.getItem(dismissedKey)) {
+    if (currentEmployee.birthday && isSameMonthDay(currentEmployee.birthday, today) && !sessionStorage.getItem(dismissedKey)) {
       setOpen(true);
     }
 
     return () => window.removeEventListener('hrobit-open-birthday', handleOpen);
-  }, []);
+  }, [currentEmployee]);
 
   const dismiss = () => {
     const today = new Date();

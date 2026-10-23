@@ -1,5 +1,17 @@
 export const initialEvents = [
   {
+    id: 'ev0',
+    title: 'Dussehra',
+    date: '2026-10-20',
+    time: 'All Day',
+    venue: 'Company-Wide',
+    category: 'Holiday',
+    description: 'Dussehra',
+    rsvp: 'https://example.com/rsvp-dussehra',
+    color: 'blue',
+    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=85',
+  },
+  {
     id: 'ev1',
     title: 'Coffee & Connect: Cross-Team Mixer',
     date: '2026-10-23',

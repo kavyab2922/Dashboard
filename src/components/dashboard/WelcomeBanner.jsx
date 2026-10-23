@@ -1,9 +1,10 @@
 import { ArrowRight, CalendarDays, Gift, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getGreeting } from '../../utils/format';
-import { currentEmployee, birthdays } from '../../data/employees';
+import { useApp } from '../../context/AppContext';
 
 export default function WelcomeBanner({ onKudos }) {
+  const { currentEmployee, celebrations, dashboardSummary } = useApp();
   const today = new Date();
   const date = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }).format(today);
 
@@ -37,7 +38,7 @@ export default function WelcomeBanner({ onKudos }) {
         </div>
 
         <div className="welcome-footnote">
-          <Sparkles size={14} /> <span>Your team celebrated 6 achievements this week.</span>
+          <Sparkles size={14} /> <span>Your team celebrated {dashboardSummary?.pulse?.winsCelebrated ?? 6} achievements this week.</span>
         </div>
       </div>
 
@@ -58,7 +59,7 @@ export default function WelcomeBanner({ onKudos }) {
             <i className="avatar-chip">PM</i>
           </span>
           <div className="celebration-text">
-            <strong>{birthdays.length} upcoming celebrations</strong>
+            <strong>{celebrations.length} upcoming celebrations</strong>
             <small>Recognize milestones with your team</small>
           </div>
         </div>
