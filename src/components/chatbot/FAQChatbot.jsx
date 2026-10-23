@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bot, ChevronDown, MessageCircle, Send, Sparkles, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useApp } from '../../context/AppContext';
+import { faqs } from '../../data/faqs';
+
+const starterText = 'Hi Kavya! I can help you navigate HR policies, benefits, leave, and contacts. What would you like to know?';
 const suggestions = ['Where can I review leave information?', 'How do I contact HR?', 'Where can I find my payslip?'];
 
 export default function FAQChatbot() {
-  const { faqs, currentEmployee } = useApp();
-  const starterText = `Hi ${currentEmployee.name.split(' ')[0]}! I can help you navigate HR policies, benefits, leave, and contacts. What would you like to know?`;
-  const suggestions = ['Where can I review leave information?', 'How do I contact HR?', 'Where can I find my payslip?'];
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([{ id: 'welcome', from: 'bot', text: starterText }]);
   const navigate = useNavigate();
-  const allQuestions = useMemo(() => faqs.map((item) => ({ ...item, normalized: `${item.question} ${item.category} ${item.answer}`.toLowerCase() })), [faqs]);
+  const allQuestions = useMemo(() => faqs.map((item) => ({ ...item, normalized: `${item.question} ${item.category} ${item.answer}`.toLowerCase() })), []);
 
   useEffect(() => {
     const openAssistant = () => setOpen(true);

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Bookmark, BookOpen, Check, ExternalLink, Filter, GraduationCap, Search, Sparkles, Star } from 'lucide-react';
-import { Panel, Tag, Button, EmptyState } from '../components/common/UI';
+import { PageTitle, Panel, Tag, Button, EmptyState } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
 const categoryOptions = ['All', ...new Set(['Java & OOP','DSA','Web Development','Cloud & DevOps','Databases','Python','Computer Science','Career Skills','AI & ML'])];
@@ -32,6 +32,17 @@ export default function LearningHub() {
 
   return (
     <>
+      <PageTitle
+        eyebrow="GROW AT YOUR OWN PACE"
+        title="Learning hub"
+        description="Discover curated resources across software engineering, cloud computing, AI, systems and professional leadership."
+        actions={
+          <button className={`btn ${savedOnly ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSavedOnly(!savedOnly)}>
+            <Bookmark size={15} fill={savedOnly ? 'currentColor' : 'none'}/> Saved resources ({saved.length})
+          </button>
+        }
+      />
+
       <div className="learning-hero">
         <div className="learning-hero-copy">
           <Tag tone="blue">YOUR PERSONAL GROWTH SPACE</Tag>
@@ -70,9 +81,6 @@ export default function LearningHub() {
             <Search size={16}/>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search courses, skills or providers..."/>
           </label>
-          <button className={`btn ${savedOnly ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setSavedOnly(!savedOnly)}>
-            <Bookmark size={15} fill={savedOnly ? 'currentColor' : 'none'}/> Saved ({saved.length})
-          </button>
           <label className="learning-free-toggle">
             <input type="checkbox" checked={freeOnly} onChange={(e) => setFreeOnly(e.target.checked)}/>
             <span/> Free resources first

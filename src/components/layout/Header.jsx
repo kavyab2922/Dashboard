@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Activity, Bell, ChevronDown, Command, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { Avatar } from '../common/UI';
 
@@ -11,11 +11,11 @@ const palettes = [
   { id: 'amber', label: 'Honey Amber', color: '#d97706', desc: 'Warm & Dynamic' },
 ];
 
-export default function Header() {
+export default function Header({ pageTitle, onMenuClick }) {
   const {
     theme, setTheme, colorTheme, setColorTheme, role, setRole,
     announcements, events, quickLinks, contacts, courses,
-    notifications, markRead, markAllRead, setToast, currentEmployee, logout,
+    notifications, markRead, markAllRead, setToast
   } = useApp();
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -55,11 +55,17 @@ export default function Header() {
 
   return (
     <header className="topbar">
-      <Link to="/" className="topbar-brand">
-        <span className="topbar-brand-mark"><Activity size={21} strokeWidth={2.6} /></span>
-        <span className="topbar-brand-name">HROrbit</span>
-      </Link>
-      <div className="topbar-search">
+      <button className="mobile-menu icon-button" aria-label="Open navigation" onClick={onMenuClick}>
+        <Menu size={20} />
+      </button>
+
+      <div className="topbar-title">
+        <span className="topbar-kicker">YOUR WORKPLACE, CONNECTED</span>
+        <h1>{pageTitle || 'Dashboard'}</h1>
+      </div>
+
+      <div className="topbar-tools">
+        {/* Global Search */}
         <div className={`global-search-wrap ${searchOpen ? 'searching' : ''}`}>
           <Search size={17} />
           <input
@@ -102,8 +108,7 @@ export default function Header() {
             </>
           )}
         </div>
-      </div>
-      <div className="topbar-tools">
+
         {/* Color Palette Switcher */}
         <div className="topbar-popover-wrap">
           <button
@@ -215,27 +220,24 @@ export default function Header() {
             className="profile-trigger"
             onClick={() => { closeAll(); setProfileOpen(!profileOpen); }}
           >
-            <Avatar name={currentEmployee.name} initials={currentEmployee.initials} color={currentEmployee.color} src={currentEmployee.avatar} />
+            <Avatar name="B Kavya" initials="BK" color="blue" />
             <span className="profile-trigger-copy">
-              <strong>{currentEmployee.name}</strong>
-              <small>{role}</small>
+              <strong>B Kavya</strong>
+              <small>{role} · Demo</small>
             </span>
             <ChevronDown size={15} />
           </button>
           {profileOpen && (
             <div className="popover-panel profile-menu">
               <div className="profile-menu-top">
-                <Avatar name={currentEmployee.name} initials={currentEmployee.initials} color={currentEmployee.color} size="lg" src={currentEmployee.avatar}/>
+                <Avatar name="B Kavya" initials="BK" color="blue" size="lg"/>
                 <div>
-                  <strong>{currentEmployee.name}</strong>
-                  <small>{currentEmployee.role} · {currentEmployee.team}</small>
+                  <strong>B Kavya</strong>
+                  <small>Product Design · Demo profile</small>
                 </div>
               </div>
               <button onClick={() => { navigate('/profile'); setProfileOpen(false); }}>
                 My profile <ArrowUpRight size={14} />
-              </button>
-              <button onClick={() => { logout(); setProfileOpen(false); navigate('/login'); }}>
-                Sign out
               </button>
               <div className="role-switch">
                 <label htmlFor="demo-role">Demo view</label>

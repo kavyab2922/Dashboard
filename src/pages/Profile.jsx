@@ -1,40 +1,39 @@
-import { useEffect, useState } from 'react';
-import { BadgeCheck, CalendarDays, Edit3, Mail, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
-import { Button, FormField, Modal, Panel, Tag } from '../components/common/UI';
+import { useState } from 'react';
+import { BadgeCheck, CalendarDays, Edit3, Globe2, Mail, MapPin, ShieldCheck, Sparkles, Camera } from 'lucide-react';
+import { Avatar, Button, FormField, Modal, PageTitle, Panel, Tag } from '../components/common/UI';
+import { currentEmployee } from '../data/employees';
 import { useApp } from '../context/AppContext';
 
 export default function Profile() {
-  const { currentEmployee, updateProfile, setToast, dashboardSummary } = useApp();
+  const { setToast } = useApp();
   const [editOpen, setEditOpen] = useState(false);
   const [roleTitle, setRoleTitle] = useState(currentEmployee.role);
   const [location, setLocation] = useState(currentEmployee.location);
-  const [bio, setBio] = useState(currentEmployee.bio || '');
+  const [bio, setBio] = useState('Passionate about crafting intuitive, accessible enterprise interfaces. Focused on scalable design systems and cross-functional collaboration.');
   const [draft, setDraft] = useState({});
 
-  useEffect(() => {
-    setRoleTitle(currentEmployee.role);
-    setLocation(currentEmployee.location);
-    setBio(currentEmployee.bio || '');
-  }, [currentEmployee]);
-
-  const save = async (event) => {
+  const save = (event) => {
     event.preventDefault();
-    const nextRole = draft.roleTitle || roleTitle;
-    const nextLocation = draft.location || location;
-    const nextBio = draft.bio ?? bio;
-    try {
-      await updateProfile({ roleTitle: nextRole, location: nextLocation, bio: nextBio, interests: currentEmployee.interests });
-      setRoleTitle(nextRole);
-      setLocation(nextLocation);
-      setBio(nextBio);
-      setEditOpen(false);
-    } catch (err) {
-      setToast(err.message || 'Could not update profile.');
-    }
+    setRoleTitle(draft.roleTitle || roleTitle);
+    setLocation(draft.location || location);
+    setBio(draft.bio ?? bio);
+    setEditOpen(false);
+    setToast('Profile details updated.');
   };
 
   return (
     <>
+      <PageTitle
+        eyebrow="YOUR WORKPLACE IDENTITY"
+        title="My profile"
+        description="Employee profile overview, department records and professional journey."
+        actions={
+          <Button onClick={() => { setDraft({ roleTitle, location, bio }); setEditOpen(true); }}>
+            <Edit3 size={15}/> Edit profile
+          </Button>
+        }
+      />
+
       <div className="profile-hero">
         <div className="profile-cover">
           {currentEmployee.cover && (
@@ -44,6 +43,9 @@ export default function Profile() {
         </div>
 
         <div className="profile-hero-person">
+          <div className="profile-avatar-wrap">
+            <Avatar name={currentEmployee.name} initials={currentEmployee.initials} size="xxl" src={currentEmployee.avatar}/>
+          </div>
           <div className="profile-hero-info">
             <div className="profile-name-row">
               <h2>{currentEmployee.name}</h2>
@@ -54,7 +56,7 @@ export default function Profile() {
             <div className="profile-meta-row">
               <span><MapPin size={14}/> {location}</span>
               <span><Mail size={14}/> {currentEmployee.email}</span>
-              <span><CalendarDays size={14}/> Joined {currentEmployee.joined || '—'}</span>
+              <span><CalendarDays size={14}/> Joined Oct 2022</span>
             </div>
           </div>
         </div>
@@ -71,7 +73,11 @@ export default function Profile() {
             </div>
             <p>{bio}</p>
             <div className="profile-interest-tags">
-              {(currentEmployee.interests || []).map((item) => <span key={item}>{item}</span>)}
+              <span>Design Systems</span>
+              <span>React & TypeScript</span>
+              <span>Accessibility</span>
+              <span>User Research</span>
+              <span>Mentorship</span>
             </div>
           </Panel>
 
@@ -118,11 +124,11 @@ export default function Profile() {
             <h3>Excellence in practice.</h3>
             <p>Your performance milestones and achievements unlocked this year.</p>
             <div className="growth-metric">
-              <span><strong>{dashboardSummary?.achievements?.value || '08'}</strong><small>Milestones Unlocked</small></span>
+              <span><strong>08</strong><small>Milestones Unlocked</small></span>
               <div className="growth-meter"><i style={{width:'80%'}}/></div>
             </div>
             <div className="growth-metric">
-              <span><strong>{dashboardSummary?.kudosReceived?.value || '12'}</strong><small>Kudos Received</small></span>
+              <span><strong>12</strong><small>Kudos Received</small></span>
               <div className="growth-meter purple"><i style={{width:'68%'}}/></div>
             </div>
           </Panel>

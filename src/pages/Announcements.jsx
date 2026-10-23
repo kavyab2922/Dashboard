@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowUpRight, Bookmark, CalendarDays, Megaphone, Pin, Search, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
-import { Panel, Tag, Button, Modal, PanelHeading } from '../components/common/UI';
+import { PageTitle, Panel, Tag, Button, Modal, PanelHeading } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
@@ -35,6 +35,13 @@ export default function Announcements() {
 
   return (
     <>
+      <PageTitle
+        eyebrow="THE LATEST FROM YOUR WORKPLACE"
+        title="Announcements"
+        description="A shared space for company milestones, executive updates, cultural news and essential workforce notices."
+        actions={role === 'HR Admin' ? <Button onClick={() => setManage(true)}>Manage posts</Button> : <Button variant="secondary" onClick={() => setManage(true)}>Demo manage view</Button>}
+      />
+
       <div className="announcement-feature">
         <div className="announcement-feature-text">
           <Tag tone="mint">IN THE LOOP</Tag>
@@ -66,7 +73,6 @@ export default function Announcements() {
               </button>
             ))}
           </div>
-          {role === 'HR Admin' ? <Button onClick={() => setManage(true)}>Manage posts</Button> : <Button variant="secondary" onClick={() => setManage(true)}>Demo manage view</Button>}
         </div>
 
         <div className="announcement-feed">

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CalendarDays, Clock3, ExternalLink, MapPin, Rows3, CalendarRange, Sparkles } from 'lucide-react';
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
-import { Button, Panel, Tag } from '../components/common/UI';
+import { Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
@@ -30,6 +30,13 @@ export default function Events() {
 
   return (
     <>
+      <PageTitle
+        eyebrow="MAKE TIME FOR CONNECTION"
+        title="Upcoming events"
+        description="Company townhalls, technical deep dives, wellness workshops and team gatherings."
+        actions={<Button variant="secondary" onClick={() => setManage(true)}>Manage events</Button>}
+      />
+
       <div className="events-hero">
         <div className="events-hero-copy">
           <Tag tone="blue">SCHEDULED GATHERINGS</Tag>
@@ -57,7 +64,6 @@ export default function Events() {
             <CalendarDays size={15}/> Month view
           </button>
         </div>
-        <Button variant="secondary" onClick={() => setManage(true)}>Manage events</Button>
       </div>
 
       {view === 'list' ? (
@@ -75,7 +81,7 @@ export default function Events() {
               )}
               <div className="event-card-main">
                 <div className="event-card-top">
-                  <Tag tone={event.category === 'Learning' ? 'purple' : event.category === 'Wellbeing' ? 'mint' : event.category === 'Holiday' ? 'blue' : 'blue'}>
+                  <Tag tone={event.category === 'Learning' ? 'purple' : event.category === 'Wellbeing' ? 'mint' : 'blue'}>
                     {event.category}
                   </Tag>
                   <span className="event-date-full">
@@ -114,35 +120,22 @@ export default function Events() {
               <div className="calendar-weekday" key={day}>{day}</div>
             ))}
             {Array.from({length:35},(_,index) => {
-              const today = new Date();
-              const year = today.getFullYear();
-              const month = today.getMonth();
-              const firstDay = new Date(year, month, 1).getDay();
+              const firstDay = new Date(new Date().getFullYear(),new Date().getMonth(),1).getDay();
               const shiftedFirst = (firstDay + 6) % 7;
               const day = index - shiftedFirst + 1;
-              const daysInMonth = new Date(year, month + 1, 0).getDate();
-              const dayEvents = sorted.filter((item) => {
+              const daysInMonth = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+              const event = sorted.find((item) => {
                 const d = new Date(`${item.date}T12:00:00`);
-                return d.getMonth() === month && d.getFullYear() === year && d.getDate() === day;
+                return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear() && d.getDate() === day;
               });
               const valid = day > 0 && day <= daysInMonth;
               return (
-                <div className={`calendar-day ${!valid ? 'outside-month' : ''} ${valid && day === today.getDate() ? 'today' : ''}`} key={index}>
-                  <span className="calendar-day-number">{valid ? day : ''}</span>
-                  {valid && dayEvents.length > 0 && (
-                    <div className="calendar-day-events">
-                      {dayEvents.map((event) => (
-                        <button
-                          key={event.id}
-                          title={event.title}
-                          className={`calendar-event-dot event-${event.color || 'mint'}`}
-                          onClick={() => openRsvp(event)}
-                        >
-                          <span className="calendar-dot" />
-                          <span className="calendar-event-title">{event.title}</span>
-                        </button>
-                      ))}
-                    </div>
+                <div className={`calendar-day ${!valid ? 'outside-month' : ''} ${valid && day === new Date().getDate() ? 'today' : ''}`} key={index}>
+                  <span>{valid ? day : ''}</span>
+                  {event && (
+                    <button title={event.title} className="calendar-event-dot" onClick={() => openRsvp(event)}>
+                      {event.title}
+                    </button>
                   )}
                 </div>
               );

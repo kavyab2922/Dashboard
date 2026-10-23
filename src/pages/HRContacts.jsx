@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowUpRight, AtSign, Building2, Mail, MapPin, Phone, Search, Users } from 'lucide-react';
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
-import { Avatar, Button, Panel, Tag } from '../components/common/UI';
+import { Avatar, Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
 export default function HRContacts() {
@@ -27,6 +27,13 @@ export default function HRContacts() {
 
   return (
     <>
+      <PageTitle
+        eyebrow="THE PEOPLE BEHIND THE HELP"
+        title="Quick Connect"
+        description="Dedicated People Partners and HR Specialists ready to assist with benefits, career development, leave and operations."
+        actions={<Button variant="secondary" onClick={() => setManage(true)}>Manage contacts</Button>}
+      />
+
       <div className="contacts-hero">
         <div className="contacts-hero-copy">
           <Tag tone="purple">PEOPLE & CULTURE DIRECTORY</Tag>
@@ -50,7 +57,6 @@ export default function HRContacts() {
           <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Filter by department">
             {teams.map((item) => <option key={item}>{item}</option>)}
           </select>
-          <Button variant="secondary" onClick={() => setManage(true)}>Manage contacts</Button>
         </div>
       </Panel>
 
