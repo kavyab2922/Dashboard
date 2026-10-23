@@ -200,7 +200,7 @@ input, textarea, select {
 /* Sidebar */
 .sidebar {
   position: fixed;
-  inset: 0 auto 0 0;
+  inset: 72px auto 0 0;
   width: 260px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
@@ -214,7 +214,7 @@ input, textarea, select {
   overflow-x: hidden;
 }
 
-.sidebar-collapsed .sidebar {
+.sidebar.sidebar-collapsed {
   width: 80px;
 }
 
@@ -468,8 +468,9 @@ input, textarea, select {
 /* Main Shell */
 .main-shell {
   margin-left: 260px;
+  margin-top: 72px;
   flex: 1;
-  min-height: 100vh;
+  min-height: calc(100vh - 72px);
   display: flex;
   flex-direction: column;
   transition: margin-left 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -480,10 +481,16 @@ input, textarea, select {
   margin-left: 80px;
 }
 
+.sidebar-is-collapsed .topbar {
+  padding-left: 90px;
+}
+
 /* Topbar Header */
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   height: 72px;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(14px);
@@ -492,7 +499,6 @@ input, textarea, select {
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 0 32px;
   z-index: 50;
   transition: background 0.2s, border-color 0.2s;
 }
@@ -501,23 +507,31 @@ input, textarea, select {
   background: rgba(16, 22, 35, 0.88);
 }
 
-.topbar-title {
+.topbar-brand {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding-left: 16px;
+  text-decoration: none;
+  margin-right: auto;
 }
 
-.topbar-kicker {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  text-transform: uppercase;
+.topbar-brand-mark {
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--primary-gradient);
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
-.topbar-title h1 {
+.topbar-brand-name {
   font-size: 19px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--text-main);
 }
 
@@ -4157,6 +4171,12 @@ input, textarea, select {
   .main-shell,
   .sidebar-is-collapsed .main-shell {
     margin-left: 0;
+    margin-top: 72px;
+    min-height: calc(100vh - 72px);
+  }
+  .topbar,
+  .sidebar-is-collapsed .topbar {
+    padding-left: 24px;
   }
   .mobile-menu {
     display: grid !important;

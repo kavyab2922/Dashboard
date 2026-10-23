@@ -21,7 +21,8 @@ export default function AppLayout() {
   const title = titles[location.pathname] || 'Employee hub';
   return <div className={`app-shell ${collapsed ? 'sidebar-is-collapsed' : ''}`}>
     <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
-    <div className="main-shell"><Header pageTitle={title} onMenuClick={() => setMobileOpen(true)} /><main className="main-content"><AnimatePresence mode="wait"><motion.div key={location.pathname} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: .15 }}><Outlet /></motion.div></AnimatePresence><footer className="app-footer"><span>© 2026 HROrbit · Employee experience prototype</span><span><span className="footer-status-dot" /> Demo mode · Local sample data</span></footer></main></div>
+    <Header pageTitle={title} onMenuClick={() => setMobileOpen(true)} />
+    <div className="main-shell"><main className="main-content"><AnimatePresence mode="wait"><motion.div key={location.pathname} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: .15 }}><Outlet /></motion.div></AnimatePresence><footer className="app-footer"><span>© 2026 HROrbit · Employee experience prototype</span><span><span className="footer-status-dot" /> Demo mode · Local sample data</span></footer></main></div>
     <FAQChatbot />
     <BirthdayModal />
     <AnimatePresence>{toast && <motion.div className="toast-message" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}><span>✓</span>{toast}</motion.div>}</AnimatePresence>

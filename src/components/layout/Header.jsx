@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { Avatar } from '../common/UI';
 
@@ -55,14 +55,12 @@ export default function Header({ pageTitle, onMenuClick }) {
 
   return (
     <header className="topbar">
-      <button className="mobile-menu icon-button" aria-label="Open navigation" onClick={onMenuClick}>
-        <Menu size={20} />
-      </button>
+      
 
-      <div className="topbar-title">
-        <span className="topbar-kicker">YOUR WORKPLACE, CONNECTED</span>
-        <h1>{pageTitle || 'Dashboard'}</h1>
-      </div>
+      <Link to="/" className="topbar-brand">
+        <span className="topbar-brand-mark"><Activity size={21} strokeWidth={2.6} /></span>
+        <span className="topbar-brand-name">HROrbit</span>
+      </Link>
 
       <div className="topbar-tools">
         {/* Global Search */}
