@@ -1,16 +1,40 @@
 import { useMemo } from 'react';
-import { ArrowRight, ArrowUpRight, Award, BellRing, BookOpen, CalendarDays, CheckCircle2, ChevronRight, CirclePlay, Flame, Gift, GraduationCap, Heart, Megaphone, MessageCircle, PartyPopper, Sparkles, Star, Users, Zap } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Award, BellRing, BookOpen, CalendarDays, ChevronRight, CirclePlay, Flame, Gift, GraduationCap, Heart, Megaphone, PartyPopper, Sparkles, Star, Users, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { birthdays, currentEmployee } from '../../data/employees';
 import { formatDate } from '../../utils/format';
 import { Avatar, Panel, PanelHeading, Tag } from '../common/UI';
 
-export function DashboardMainGrid() {
-  const { announcements, events, kudos, quickLinks, courses, savedCourses } = useApp();
+export function DashboardMainGrid({ summary, summaryLoading, summaryError }) {
+  const {
+    announcements, announcementsState,
+    events, eventsState,
+    kudos, kudosState,
+    quickLinks, quickLinksState,
+    courses, coursesState, savedCourses,
+    celebrations, celebrationsState,
+  } = useApp();
+
   const pinned = announcements.filter((item) => item.pinned).slice(0, 2);
   const upcoming = [...events].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
   const upcomingCourse = courses.find((course) => !savedCourses.includes(course.id)) || courses[0];
+
+  const pulse = summary?.pulse;
+  const pulseTotal = pulse?.totalMembers || 0;
+  const pulseActive = pulse?.activeMembers || 0;
+  const pulseWins = pulse?.winsCelebrated;
+  const pulseWidth = pulseTotal > 0 ? Math.round((pulseActive / pulseTotal) * 100) : 0;
+
+  const pulseAvatars = useMemo(() => {
+    const seen = new Set();
+    const initials = [];
+    for (const item of kudos) {
+      const value = item.initials || (item.from ? item.from.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() : '');
+      if (value && !seen.has(value)) { seen.add(value); initials.push(value); }
+      if (initials.length >= 4) break;
+    }
+    return initials;
+  }, [kudos]);
 
   return (
     <div className="dashboard-grid">
@@ -21,7 +45,11 @@ export function DashboardMainGrid() {
           subtitle="The latest verified updates from your workplace"
           action={<Link to="/announcements" className="panel-action">All updates <ArrowRight size={14}/></Link>}
         />
-        {pinned.length ? (
+        {announcementsState.loading ? (
+          <p className="muted">Loading announcements…</p>
+        ) : announcementsState.error ? (
+          <p className="muted">Unable to load announcements: {announcementsState.error}</p>
+        ) : pinned.length ? (
           <div className="announcement-list">
             {pinned.map((item, index) => (
               <Link to="/announcements" className="announcement-item" key={item.id}>
@@ -118,25 +146,34 @@ export function DashboardMainGrid() {
           subtitle="Real-time workplace vibes"
           action={<span className="pulse-live"><i/> LIVE</span>}
         />
-        <div className="pulse-stat-row">
-          <div className="pulse-stat">
-            <div className="pulse-number">24<span>/30</span></div>
-            <p>Team members active</p>
-            <div className="pulse-meter"><i style={{width:'80%'}}/></div>
+        {summaryError ? (
+          <p className="muted">Unable to load team pulse: {summaryError}</p>
+        ) : (
+          <div className="pulse-stat-row">
+            <div className="pulse-stat">
+              <div className="pulse-number">
+                {summaryLoading ? '…' : String(pulseActive).padStart(2, '0')}
+                {!summaryLoading && <span>/{pulseTotal}</span>}
+              </div>
+              <p>Team members active</p>
+              <div className="pulse-meter"><i style={{width: `${pulseWidth}%`}}/></div>
+            </div>
+            <div className="pulse-stat">
+              <div className="pulse-number">{summaryLoading ? '…' : String(pulseWins ?? 0).padStart(2, '0')}</div>
+              <p>Wins celebrated</p>
+              <div className="pulse-meter meter-purple"><i style={{width: pulseTotal > 0 ? `${Math.min(100, Math.round(((pulseWins ?? 0) / Math.max(pulseTotal, 1)) * 100))}%` : '0%'}}/></div>
+            </div>
           </div>
-          <div className="pulse-stat">
-            <div className="pulse-number">06</div>
-            <p>Wins celebrated</p>
-            <div className="pulse-meter meter-purple"><i style={{width:'62%'}}/></div>
-          </div>
-        </div>
+        )}
         <div className="pulse-footer">
-          <span className="mini-avatar-stack">
-            <i className="avatar-chip">BK</i>
-            <i className="avatar-chip">PM</i>
-            <i className="avatar-chip">MN</i>
-            <i className="avatar-chip extra">+4</i>
-          </span>
+          {pulseAvatars.length > 0 && (
+            <span className="mini-avatar-stack">
+              {pulseAvatars.slice(0, 3).map((initials) => (
+                <i className="avatar-chip" key={initials}>{initials}</i>
+              ))}
+              {pulseAvatars.length > 3 && <i className="avatar-chip extra">+{pulseAvatars.length - 3}</i>}
+            </span>
+          )}
           <span>Good things happen together.</span>
           <Heart size={15} className="pulse-heart"/>
         </div>
@@ -149,30 +186,38 @@ export function DashboardMainGrid() {
           subtitle="Recommended learning pathway"
           action={<Link to="/learning" className="panel-action">Explore hub <ArrowRight size={14}/></Link>}
         />
-        <div className="course-feature-body">
-          {upcomingCourse.image ? (
-            <div className="course-feature-thumb">
-              <img src={upcomingCourse.image} alt={upcomingCourse.title} className="course-feature-img" loading="lazy" />
-            </div>
-          ) : (
-            <div className="course-feature-logo">
-              <BookOpen size={24}/>
-              <span>LEARN</span>
-            </div>
-          )}
-          <div className="course-feature-info">
-            <div className="course-meta-tags">
-              <Tag tone="blue">{upcomingCourse.level}</Tag>
-              <span className="course-provider-tag">{upcomingCourse.provider}</span>
-            </div>
-            <h3>{upcomingCourse.title}</h3>
-            <p>{upcomingCourse.description}</p>
-            <div className="course-feature-meta">
-              <span><GraduationCap size={13}/> {upcomingCourse.provider}</span>
-              <span>{upcomingCourse.access}</span>
+        {coursesState.loading ? (
+          <p className="muted">Loading learning resources…</p>
+        ) : coursesState.error ? (
+          <p className="muted">Unable to load learning resources: {coursesState.error}</p>
+        ) : !upcomingCourse ? (
+          <p className="muted">No learning resources available yet.</p>
+        ) : (
+          <div className="course-feature-body">
+            {upcomingCourse.image ? (
+              <div className="course-feature-thumb">
+                <img src={upcomingCourse.image} alt={upcomingCourse.title} className="course-feature-img" loading="lazy" />
+              </div>
+            ) : (
+              <div className="course-feature-logo">
+                <BookOpen size={24}/>
+                <span>LEARN</span>
+              </div>
+            )}
+            <div className="course-feature-info">
+              <div className="course-meta-tags">
+                <Tag tone="blue">{upcomingCourse.level}</Tag>
+                <span className="course-provider-tag">{upcomingCourse.provider}</span>
+              </div>
+              <h3>{upcomingCourse.title}</h3>
+              <p>{upcomingCourse.description}</p>
+              <div className="course-feature-meta">
+                <span><GraduationCap size={13}/> {upcomingCourse.provider}</span>
+                <span>{upcomingCourse.access}</span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
         <Link to="/learning" className="course-explore-link">
           Explore your full learning list <ArrowRight size={14}/>
         </Link>
@@ -184,7 +229,11 @@ export function DashboardMainGrid() {
           subtitle="Scheduled events & gatherings"
           action={<Link to="/events" className="panel-action">Calendar <ArrowRight size={14}/></Link>}
         />
-        {upcoming.length ? (
+        {eventsState.loading ? (
+          <p className="muted">Loading events…</p>
+        ) : eventsState.error ? (
+          <p className="muted">Unable to load events: {eventsState.error}</p>
+        ) : upcoming.length ? (
           <div className="upcoming-list">
             {upcoming.map((event) => (
               <Link to="/events" className="upcoming-item" key={event.id}>
@@ -212,25 +261,33 @@ export function DashboardMainGrid() {
           subtitle="Peer-to-peer appreciation wall"
           action={<Link to="/recognition" className="panel-action">See feed <ArrowRight size={14}/></Link>}
         />
-        <div className="kudos-list">
-          {kudos.slice(0, 2).map((item) => (
-            <div className="kudos-item" key={item.id}>
-              <Avatar name={item.from} initials={item.initials} color={item.color}/>
-              <div className="kudos-content-wrap">
-                <div className="kudos-byline">
-                  <strong>{item.from}</strong>
-                  <span className="kudos-arrow">→</span>
-                  <b>{item.to}</b>
-                </div>
-                <p>{item.message}</p>
-                <div className="kudos-meta">
-                  <span className="kudos-heart"><Heart size={12} fill="currentColor"/> {item.category}</span>
-                  <span>{formatDate(item.date)}</span>
+        {kudosState.loading ? (
+          <p className="muted">Loading kudos…</p>
+        ) : kudosState.error ? (
+          <p className="muted">Unable to load kudos: {kudosState.error}</p>
+        ) : kudos.length === 0 ? (
+          <p className="muted">No kudos shared yet.</p>
+        ) : (
+          <div className="kudos-list">
+            {kudos.slice(0, 2).map((item) => (
+              <div className="kudos-item" key={item.id}>
+                <Avatar name={item.from} initials={item.initials} color={item.color}/>
+                <div className="kudos-content-wrap">
+                  <div className="kudos-byline">
+                    <strong>{item.from}</strong>
+                    <span className="kudos-arrow">→</span>
+                    <b>{item.to}</b>
+                  </div>
+                  <p>{item.message}</p>
+                  <div className="kudos-meta">
+                    <span className="kudos-heart"><Heart size={12} fill="currentColor"/> {item.category}</span>
+                    <span>{formatDate(item.date)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Panel>
 
       <Panel className="quicklinks-panel span-6">
@@ -239,23 +296,31 @@ export function DashboardMainGrid() {
           subtitle="Everyday workspace essentials"
           action={<Link to="/quick-links" className="panel-action">All links <ArrowRight size={14}/></Link>}
         />
-        <div className="quicklink-grid">
-          {quickLinks.slice(0, 4).map((item, index) => {
-            const icons = [CirclePlay, CalendarDays, Gift, BookOpen];
-            const Icon = icons[index % icons.length];
-            return (
-              <Link to={item.url.startsWith('/') ? item.url : '/quick-links'} className="quicklink-mini" key={item.id}>
-                <span className={`quicklink-mini-icon quicklink-tone-${index}`}>
-                  <Icon size={17}/>
-                </span>
-                <div className="quicklink-info">
-                  <strong>{item.title}</strong>
-                  <small>{item.placeholder ? 'Portal shortcut' : item.description}</small>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        {quickLinksState.loading ? (
+          <p className="muted">Loading quick links…</p>
+        ) : quickLinksState.error ? (
+          <p className="muted">Unable to load quick links: {quickLinksState.error}</p>
+        ) : quickLinks.length === 0 ? (
+          <p className="muted">No quick links available yet.</p>
+        ) : (
+          <div className="quicklink-grid">
+            {quickLinks.slice(0, 4).map((item, index) => {
+              const icons = [CirclePlay, CalendarDays, Gift, BookOpen];
+              const Icon = icons[index % icons.length];
+              return (
+                <Link to={item.url.startsWith('/') ? item.url : '/quick-links'} className="quicklink-mini" key={item.id}>
+                  <span className={`quicklink-mini-icon quicklink-tone-${index}`}>
+                    <Icon size={17}/>
+                  </span>
+                  <div className="quicklink-info">
+                    <strong>{item.title}</strong>
+                    <small>{item.placeholder ? 'Portal shortcut' : item.description}</small>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </Panel>
 
       {/* Row 5: Featured Achievements (6 cols) + People to Celebrate (6 cols) */}
@@ -271,22 +336,10 @@ export function DashboardMainGrid() {
             <div className="achievement-medal"><Award size={28}/></div>
           </div>
           <div className="achievement-copy">
-            <Tag tone="purple">MILESTONE UNLOCKED</Tag>
-            <h3>Curiosity in action</h3>
-            <p>You completed a core learning track and demonstrated cross-functional initiative.</p>
-            <div className="achievement-footer">
-              <span><Star size={13} fill="currentColor"/> Learning Explorer</span>
-              <span>Oct 12</span>
-            </div>
+            <Tag tone="purple">ACHIEVEMENTS</Tag>
+            <h3>No achievement records available</h3>
+            <p>Achievement and badge data is not tracked in the database yet, so nothing is shown here.</p>
           </div>
-        </div>
-        <div className="achievement-mini-row">
-          <div className="mini-achievement-icon"><Sparkles size={16}/></div>
-          <div>
-            <strong>Team Player of the Month</strong>
-            <small>Recognized for cross-team technical collaboration</small>
-          </div>
-          <span className="achievement-date">Sep 28</span>
         </div>
       </Panel>
 
@@ -296,20 +349,28 @@ export function DashboardMainGrid() {
           subtitle="Birthdays & anniversaries this week"
           action={<Link to="/community" className="panel-action">Community <ArrowRight size={14}/></Link>}
         />
-        <div className="celebration-list">
-          {birthdays.slice(0, 3).map((person, index) => (
-            <div className="celebration-item" key={person.id}>
-              <Avatar name={person.name} initials={person.initials} color={person.color}/>
-              <div className="celebration-info">
-                <strong>{person.name}</strong>
-                <small>{person.dateLabel}</small>
+        {celebrationsState.loading ? (
+          <p className="muted">Loading celebrations…</p>
+        ) : celebrationsState.error ? (
+          <p className="muted">Unable to load celebrations: {celebrationsState.error}</p>
+        ) : celebrations.length === 0 ? (
+          <p className="muted">No upcoming birthdays or celebrations.</p>
+        ) : (
+          <div className="celebration-list">
+            {celebrations.slice(0, 3).map((person, index) => (
+              <div className="celebration-item" key={person.id}>
+                <Avatar name={person.name} initials={person.initials} color={person.color}/>
+                <div className="celebration-info">
+                  <strong>{person.name}</strong>
+                  <small>{person.dateLabel}</small>
+                </div>
+                <span className="celebration-action">
+                  {index === 0 ? <Gift size={16}/> : <PartyPopper size={16}/>}
+                </span>
               </div>
-              <span className="celebration-action">
-                {index === 0 ? <Gift size={16}/> : <PartyPopper size={16}/>}
-              </span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Panel>
     </div>
   );

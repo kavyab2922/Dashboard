@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
 export default function Events() {
-  const { events, setToast } = useApp();
+  const { events, eventsState, setToast } = useApp();
   const [view, setView] = useState('list');
   const [manage, setManage] = useState(false);
   const sorted = [...events].sort((a,b) => a.date.localeCompare(b.date));
@@ -24,7 +24,7 @@ export default function Events() {
     if (event.rsvp && /^https?:\/\//i.test(event.rsvp)) {
       window.open(event.rsvp, '_blank', 'noopener,noreferrer');
     } else {
-      setToast('RSVP confirmed for this demo event!');
+      setToast('No RSVP link has been provided for this event.');
     }
   };
 
@@ -66,7 +66,11 @@ export default function Events() {
         </div>
       </div>
 
-      {view === 'list' ? (
+      {eventsState.loading ? (
+        <Panel><p className="muted">Loading events…</p></Panel>
+      ) : eventsState.error ? (
+        <Panel><p className="muted">Unable to load events: {eventsState.error}</p></Panel>
+      ) : view === 'list' ? (
         <div className="events-list">
           {sorted.map((event) => (
             <Panel className="event-card" key={event.id}>

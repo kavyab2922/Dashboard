@@ -5,7 +5,7 @@ import { Avatar, Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
 export default function HRContacts() {
-  const { contacts, setToast } = useApp();
+  const { contacts, contactsState, setToast } = useApp();
   const [search, setSearch] = useState('');
   const [team, setTeam] = useState('All');
   const [manage, setManage] = useState(false);
@@ -33,6 +33,16 @@ export default function HRContacts() {
         description="Dedicated People Partners and HR Specialists ready to assist with benefits, career development, leave and operations."
         actions={<Button variant="secondary" onClick={() => setManage(true)}>Manage contacts</Button>}
       />
+
+      {contactsState.loading && (
+        <Panel><p className="muted">Loading HR contacts…</p></Panel>
+      )}
+      {contactsState.error && (
+        <Panel><p className="muted">Unable to load HR contacts: {contactsState.error}</p></Panel>
+      )}
+      {!contactsState.loading && !contactsState.error && contacts.length === 0 && (
+        <Panel><p className="muted">No HR contacts found in the employee directory.</p></Panel>
+      )}
 
       <div className="contacts-hero">
         <div className="contacts-hero-copy">
@@ -77,25 +87,23 @@ export default function HRContacts() {
             <div className="contact-card-body">
               <h3>{contact.name}</h3>
               <p className="contact-focus">{contact.focus}</p>
+              {contact.location && (
+                <div className="contact-detail-row">
+                  <MapPin size={14}/> {contact.location}
+                </div>
+              )}
               <div className="contact-detail-row">
-                <MapPin size={14}/> {contact.location}
-              </div>
-              <div className="contact-detail-row">
-                <AtSign size={14}/> {contact.email}
+                <AtSign size={14}/> {contact.email || 'No email on file'}
               </div>
               <div className="contact-card-actions">
-                <a
-                  className="btn btn-secondary btn-sm"
-                  href={`mailto:${contact.email}`}
-                  onClick={(event) => {
-                    if (contact.email?.includes('@example.com')) {
-                      event.preventDefault();
-                      setToast(`Opening secure email to ${contact.name}`);
-                    }
-                  }}
-                >
-                  <Mail size={14}/> Email Partner
-                </a>
+                {contact.email && (
+                  <a
+                    className="btn btn-secondary btn-sm"
+                    href={`mailto:${contact.email}`}
+                  >
+                    <Mail size={14}/> Email Partner
+                  </a>
+                )}
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => setToast(`${contact.name}: ${contact.focus}`)}

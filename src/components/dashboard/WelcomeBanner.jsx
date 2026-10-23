@@ -1,11 +1,21 @@
 import { ArrowRight, CalendarDays, Gift, Sparkles, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getGreeting } from '../../utils/format';
-import { currentEmployee, birthdays } from '../../data/employees';
+import { useApp } from '../../context/AppContext';
 
 export default function WelcomeBanner({ onKudos }) {
+  const { user, celebrations, kudos } = useApp();
   const today = new Date();
   const date = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }).format(today);
+
+  const firstName = (user?.name || 'Employee').split(' ')[0];
+  const upcomingCelebrations = celebrations.length;
+
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weeklyKudos = kudos.filter((item) => item.date && new Date(`${item.date}T12:00:00`) >= weekAgo).length;
+
+  const chipInitials = celebrations.slice(0, 3).map((person) => person.initials);
 
   return (
     <section className="welcome-banner">
@@ -21,7 +31,7 @@ export default function WelcomeBanner({ onKudos }) {
         </div>
 
         <h2>
-          {getGreeting()}, {currentEmployee.name.split(' ')[0]} <span className="greeting-sparkle">✦</span>
+          {getGreeting()}, {firstName} <span className="greeting-sparkle">✦</span>
         </h2>
         <p>
           Welcome back to your employee hub. Catch up on announcements, recognize colleagues, and access everyday tools.
@@ -37,7 +47,11 @@ export default function WelcomeBanner({ onKudos }) {
         </div>
 
         <div className="welcome-footnote">
-          <Sparkles size={14} /> <span>Your team celebrated 6 achievements this week.</span>
+          <Sparkles size={14} /> <span>
+            {weeklyKudos > 0
+              ? `Your team celebrated ${weeklyKudos} ${weeklyKudos === 1 ? 'win' : 'wins'} of appreciation this week.`
+              : 'No kudos recorded this week yet — be the first to recognize someone.'}
+          </span>
         </div>
       </div>
 
@@ -52,13 +66,15 @@ export default function WelcomeBanner({ onKudos }) {
         </div>
 
         <div className="welcome-celebration-pill">
-          <span className="mini-avatar-stack">
-            <i className="avatar-chip">MN</i>
-            <i className="avatar-chip">BK</i>
-            <i className="avatar-chip">PM</i>
-          </span>
+          {chipInitials.length > 0 && (
+            <span className="mini-avatar-stack">
+              {chipInitials.map((initials, index) => (
+                <i className="avatar-chip" key={`${initials}-${index}`}>{initials}</i>
+              ))}
+            </span>
+          )}
           <div className="celebration-text">
-            <strong>{birthdays.length} upcoming celebrations</strong>
+            <strong>{upcomingCelebrations} upcoming celebration{upcomingCelebrations === 1 ? '' : 's'}</strong>
             <small>Recognize milestones with your team</small>
           </div>
         </div>

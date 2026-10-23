@@ -14,9 +14,13 @@ const palettes = [
 export default function Header({ pageTitle, onMenuClick }) {
   const {
     theme, setTheme, colorTheme, setColorTheme, role, setRole,
+    user,
     announcements, events, quickLinks, contacts, courses,
-    notifications, markRead, markAllRead, setToast
+    notifications, markNotificationRead, markAllNotificationsRead, setToast
   } = useApp();
+
+  const displayName = user?.name || 'Employee';
+  const displayInitials = user?.initials || displayName.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -166,7 +170,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                   <strong>Notifications</strong>
                   <small>{unread} unread updates</small>
                 </div>
-                <button className="text-link" onClick={markAllRead}>
+                <button className="text-link" onClick={() => { markAllNotificationsRead().catch((err) => setToast(err.message || 'Unable to update notifications.')); }}>
                   <CheckCheck size={14} /> Mark all read
                 </button>
               </div>
@@ -176,7 +180,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                     key={item.id}
                     className={`notification-row ${!item.read ? 'unread' : ''}`}
                     onClick={() => {
-                      markRead(item.id);
+                      markNotificationRead(item.id).catch((err) => setToast(err.message || 'Unable to update notification.'));
                       setNotifOpen(false);
                       navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
                     }}
@@ -218,9 +222,9 @@ export default function Header({ pageTitle, onMenuClick }) {
             className="profile-trigger"
             onClick={() => { closeAll(); setProfileOpen(!profileOpen); }}
           >
-            <Avatar name="B Kavya" initials="BK" color="blue" />
+            <Avatar name={displayName} initials={displayInitials} color="blue" src={user?.avatar} />
             <span className="profile-trigger-copy">
-              <strong>B Kavya</strong>
+              <strong>{displayName}</strong>
               <small>{role} · Demo</small>
             </span>
             <ChevronDown size={15} />
@@ -228,10 +232,10 @@ export default function Header({ pageTitle, onMenuClick }) {
           {profileOpen && (
             <div className="popover-panel profile-menu">
               <div className="profile-menu-top">
-                <Avatar name="B Kavya" initials="BK" color="blue" size="lg"/>
+                <Avatar name={displayName} initials={displayInitials} color="blue" size="lg" src={user?.avatar}/>
                 <div>
-                  <strong>B Kavya</strong>
-                  <small>Product Design · Demo profile</small>
+                  <strong>{displayName}</strong>
+                  <small>{user?.team || user?.role || 'Employee'}{user?.organization ? ` · ${user.organization}` : ''}</small>
                 </div>
               </div>
               <button onClick={() => { navigate('/profile'); setProfileOpen(false); }}>
