@@ -222,7 +222,7 @@ input, textarea, select {
 /* Sidebar */
 .sidebar {
   position: fixed;
-  inset: 0 auto 0 0;
+  inset: 72px auto 0 0;
   width: 260px;
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
@@ -343,7 +343,7 @@ input, textarea, select {
 .topbar {
   position: fixed;
   top: 0;
-  left: 260px;
+  left: 0;
   right: 0;
   height: 72px;
   background: rgba(255, 255, 255, 0.88);
@@ -353,7 +353,7 @@ input, textarea, select {
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 0 32px;
+  padding: 0 32px 0 270px;
   z-index: 50;
   transition: background 0.2s, border-color 0.2s;
 }
