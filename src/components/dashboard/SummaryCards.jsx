@@ -1,4 +1,4 @@
-import { ArrowUpRight, Award, CalendarDays, Heart, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Award, Heart, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const items = [
@@ -19,16 +19,6 @@ const items = [
     tone: 'rose',
     to: '/recognition',
     badge: '3 new',
-  },
-  {
-    title: 'PTO & leave balance',
-    value: '14.5',
-    suffix: 'days',
-    caption: 'Available annual vacation',
-    icon: CalendarDays,
-    tone: 'blue',
-    to: '/quick-links',
-    badge: 'Approved',
   },
 ];
 
