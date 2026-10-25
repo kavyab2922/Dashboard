@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import useClickOutside from '../../hooks/useClickOutside';
 import { Avatar } from '../common/UI';
 
 const palettes = [
@@ -29,6 +30,13 @@ export default function Header({ pageTitle, onMenuClick }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
 
+  // One ref per navbar dropdown (trigger + panel) for outside-click closing.
+  const searchRef = useRef(null);
+  const paletteRef = useRef(null);
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+  const dropdownRefs = useMemo(() => [searchRef, paletteRef, notifRef, profileRef], []);
+
   const unread = notifications.filter((item) => !item.read).length;
 
   const results = useMemo(() => {
@@ -50,12 +58,15 @@ export default function Header({ pageTitle, onMenuClick }) {
     setSearchOpen(false);
   };
 
-  const closeAll = () => {
+  const closeAll = useCallback(() => {
     setNotifOpen(false);
     setProfileOpen(false);
     setPaletteOpen(false);
     setSearchOpen(false);
-  };
+  }, []);
+
+  // Close the open dropdown when clicking anywhere outside it or its trigger.
+  useClickOutside(dropdownRefs, searchOpen || paletteOpen || notifOpen || profileOpen, closeAll);
 
   return (
     <header className="topbar">
@@ -68,7 +79,7 @@ export default function Header({ pageTitle, onMenuClick }) {
 
       <div className="topbar-tools">
         {/* Global Search */}
-        <div className={`global-search-wrap ${searchOpen ? 'searching' : ''}`}>
+        <div ref={searchRef} className={`global-search-wrap ${searchOpen ? 'searching' : ''}`}>
           <Search size={17} />
           <input
             aria-label="Search HROrbit"
@@ -112,7 +123,7 @@ export default function Header({ pageTitle, onMenuClick }) {
         </div>
 
         {/* Color Palette Switcher */}
-        <div className="topbar-popover-wrap">
+        <div ref={paletteRef} className="topbar-popover-wrap">
           <button
             className={`icon-button palette-button ${paletteOpen ? 'active' : ''}`}
             aria-label="Choose color theme"
@@ -154,7 +165,7 @@ export default function Header({ pageTitle, onMenuClick }) {
         </div>
 
         {/* Notifications */}
-        <div className="topbar-popover-wrap">
+        <div ref={notifRef} className="topbar-popover-wrap">
           <button
             className={`icon-button notification-button ${notifOpen ? 'active' : ''}`}
             aria-label={`Notifications, ${unread} unread`}
@@ -217,7 +228,7 @@ export default function Header({ pageTitle, onMenuClick }) {
         </button>
 
         {/* Profile Trigger */}
-        <div className="topbar-popover-wrap">
+        <div ref={profileRef} className="topbar-popover-wrap">
           <button
             className="profile-trigger"
             onClick={() => { closeAll(); setProfileOpen(!profileOpen); }}
@@ -225,7 +236,7 @@ export default function Header({ pageTitle, onMenuClick }) {
             <Avatar name={displayName} initials={displayInitials} color="blue" src={user?.avatar} />
             <span className="profile-trigger-copy">
               <strong>{displayName}</strong>
-              <small>{role} · Demo</small>
+              <small>{role} </small>
             </span>
             <ChevronDown size={15} />
           </button>
@@ -233,9 +244,9 @@ export default function Header({ pageTitle, onMenuClick }) {
             <div className="popover-panel profile-menu">
               <div className="profile-menu-top">
                 <Avatar name={displayName} initials={displayInitials} color="blue" size="lg" src={user?.avatar}/>
-                <div>
+                <div className="profile-menu-info">
                   <strong>{displayName}</strong>
-                  <small>{user?.team || user?.role || 'Employee'}{user?.organization ? ` · ${user.organization}` : ''}</small>
+                  <small>{user?.role || user?.team || 'Employee'}</small>
                 </div>
               </div>
               <button onClick={() => { navigate('/profile'); setProfileOpen(false); }}>

@@ -40,8 +40,7 @@ export default function Login({ mode = 'login' }) {
         ? await authApi.register({ name: form.name.trim(), email: form.email.trim(), password: form.password })
         : await authApi.login({ email: form.email.trim(), password: form.password });
       localStorage.setItem('hrobit-auth-token', response.token);
-      localStorage.setItem('hrobit-auth-user', JSON.stringify(response.user));
-      startSession();
+      startSession(response.user);
       navigate('/', { replace: true });
     } catch (requestError) {
       setError(requestError.message || 'Unable to continue. Please try again.');

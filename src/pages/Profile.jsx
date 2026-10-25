@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BadgeCheck, CalendarDays, Edit3, Mail, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
 import { Avatar, Button, FormField, Modal, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
-import { dataApi } from '../services/api';
+import { dataApi, getToken } from '../services/api';
 import { formatDate } from '../utils/format';
 
 function computeAnniversary(joinedDate) {
@@ -24,22 +24,26 @@ function computeAnniversary(joinedDate) {
 }
 
 export default function Profile() {
-  const { user, updateProfile, setToast } = useApp();
+  const { user, userLoading, sessionVersion, updateProfile, setToast } = useApp();
   const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
 
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
+    const requestToken = getToken();
+    setSummaryLoading(true);
+    setSummaryError('');
     dataApi.dashboard.summary()
-      .then((response) => { if (!cancelled) setSummary(response.data || null); })
-      .catch(() => { /* summary metrics degrade to em dashes */ })
-      .finally(() => { if (!cancelled) setSummaryLoading(false); });
+      .then((response) => { if (!cancelled && requestToken === getToken()) setSummary(response.data || null); })
+      .catch((err) => { if (!cancelled && requestToken === getToken()) setSummaryError(err.message || 'Unable to load profile summary.'); })
+      .finally(() => { if (!cancelled && requestToken === getToken()) setSummaryLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [sessionVersion]);
 
   const roleTitle = user?.role || '';
   const location = user?.location || '';
@@ -94,7 +98,7 @@ export default function Profile() {
             <div className="profile-name-row">
               <h2>{user?.name || 'Employee'}</h2>
               <BadgeCheck size={20} className="profile-verified-badge" />
-              <Tag tone="mint">FULL-TIME EMPLOYEE</Tag>
+              <Tag tone="mint">{(user?.employmentType || 'Employee').toUpperCase()}</Tag>
             </div>
             <p>{roleTitle || 'Role not on file'} {user?.team && <><span>·</span> {user.team}</>}</p>
             <div className="profile-meta-row">
@@ -115,7 +119,13 @@ export default function Profile() {
                 <Edit3 size={15}/>
               </button>
             </div>
-            {bio ? <p>{bio}</p> : <p className="muted">No bio on file yet. Add one with “Edit profile”.</p>}
+            {userLoading ? (
+              <p className="muted">Loading your profile…</p>
+            ) : bio ? (
+              <p>{bio}</p>
+            ) : (
+              <p className="muted">No bio on file yet. Add one with “Edit profile”.</p>
+            )}
             {interests.length > 0 ? (
               <div className="profile-interest-tags">
                 {interests.map((interest) => <span key={interest}>{interest}</span>)}
@@ -130,7 +140,7 @@ export default function Profile() {
           <Panel className="profile-info">
             <div className="profile-section-head">
               <h3>Professional Details</h3>
-              <span className="profile-private"><ShieldCheck size={13}/> Verified HR Record</span>
+              <span className="profile-private"><ShieldCheck size={13}/></span>
             </div>
             <div className="profile-info-grid">
               <div>
@@ -174,8 +184,13 @@ export default function Profile() {
               <div className="growth-meter"><i style={{width:'0%'}}/></div>
             </div>
             <div className="growth-metric">
-              <span><strong>{summaryLoading ? '…' : (summary?.kudosReceived?.value ?? '—')}</strong><small>Kudos Received</small></span>
-              <div className="growth-meter purple"><i style={{width: summary?.kudosReceived?.value ? '68%' : '0%'}}/></div>
+              <span>
+                <strong>{summaryLoading ? '…' : summaryError ? '—' : (summary?.kudosReceived?.value ?? '—')}</strong>
+                <small>{summaryError ? 'Summary unavailable' : 'Kudos Received'}</small>
+              </span>
+              <div className="growth-meter purple">
+                <i style={{width: summary?.kudosReceived?.value ? '100%' : '0%'}}/>
+              </div>
             </div>
           </Panel>
 

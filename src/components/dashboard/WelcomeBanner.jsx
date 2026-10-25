@@ -4,7 +4,7 @@ import { getGreeting } from '../../utils/format';
 import { useApp } from '../../context/AppContext';
 
 export default function WelcomeBanner({ onKudos }) {
-  const { user, celebrations, kudos } = useApp();
+  const { user, celebrations, celebrationsState, kudos } = useApp();
   const today = new Date();
   const date = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }).format(today);
 
@@ -74,8 +74,14 @@ export default function WelcomeBanner({ onKudos }) {
             </span>
           )}
           <div className="celebration-text">
-            <strong>{upcomingCelebrations} upcoming celebration{upcomingCelebrations === 1 ? '' : 's'}</strong>
-            <small>Recognize milestones with your team</small>
+            <strong>
+              {celebrationsState.loading
+                ? 'Loading celebrations…'
+                : celebrationsState.error
+                  ? 'Celebrations unavailable'
+                  : `${upcomingCelebrations} upcoming celebration${upcomingCelebrations === 1 ? '' : 's'}`}
+            </strong>
+            <small>{celebrationsState.error ? 'Unable to load from the server' : 'Recognize milestones with your team'}</small>
           </div>
         </div>
       </div>

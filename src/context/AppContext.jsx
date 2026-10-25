@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi, dataApi, getToken } from '../services/api';
+import { normalizeUser } from '../utils/user';
 
 const AppContext = createContext(null);
 const STORAGE_KEY = 'hrobit-demo-state-v1';
@@ -14,22 +15,30 @@ function savePrefs(prefs) {
   catch { /* preferences remain in memory if storage is unavailable */ }
 }
 
-/** Loads a backend collection once on mount and exposes refresh. */
-function useCollection(loader, enabled = true) {
+/** Loads a backend collection and refreshes whenever the session changes. */
+function useCollection(loader, enabled = true, sessionVersion = 0) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState('');
 
   const refresh = useCallback(async () => {
-    if (!enabled) return [];
+    if (!enabled) {
+      setItems([]);
+      setError('');
+      setLoading(false);
+      return [];
+    }
+    const requestToken = getToken();
     setLoading(true);
     try {
       const payload = await loader();
+      if (requestToken !== getToken()) return [];
       const data = Array.isArray(payload?.data) ? payload.data : [];
       setItems(data);
       setError('');
       return data;
     } catch (err) {
+      if (requestToken !== getToken()) return [];
       if (err?.status === 401 || err?.status === 404) {
         setError('Your session has ended. Please sign in again.');
       } else {
@@ -37,11 +46,19 @@ function useCollection(loader, enabled = true) {
       }
       return [];
     } finally {
-      setLoading(false);
+      if (requestToken === getToken()) setLoading(false);
     }
   }, [loader, enabled]);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    if (!enabled) {
+      setItems([]);
+      setError('');
+      setLoading(false);
+      return;
+    }
+    refresh();
+  }, [refresh, enabled, sessionVersion]);
 
   return { items, setItems, loading, error, refresh };
 }
@@ -51,6 +68,7 @@ export function AppProvider({ children }) {
 
   // Tracks whether a session exists (updated after login/logout)
   const [sessionActive, setSessionActive] = useState(() => Boolean(getToken()));
+  const [sessionVersion, setSessionVersion] = useState(0);
 
   // UI preferences (not business data) stay in local storage
   const [theme, setTheme] = useState(prefs.theme || 'light');
@@ -77,14 +95,18 @@ export function AppProvider({ children }) {
   }, []);
 
   const refreshUser = useCallback(async () => {
-    if (!getToken()) { setUser(null); setUserLoading(false); return null; }
+    const requestToken = getToken();
+    if (!requestToken) { setUser(null); setUserLoading(false); return null; }
     setUserLoading(true);
     try {
-      const response = await authApi.me();
-      setUser(response.user);
-      localStorage.setItem('hrobit-auth-user', JSON.stringify(response.user));
-      return response.user;
+      const rawUser = await authApi.me();
+      if (requestToken !== getToken()) return null;
+      const nextUser = normalizeUser(rawUser.user);
+      setUser(nextUser);
+      localStorage.setItem('hrobit-auth-user', JSON.stringify(nextUser));
+      return nextUser;
     } catch (err) {
+      if (requestToken !== getToken()) return null;
       if (err?.status === 401 || err?.status === 404) {
         endSession();
       } else {
@@ -93,17 +115,23 @@ export function AppProvider({ children }) {
       }
       return null;
     } finally {
-      setUserLoading(false);
+      if (requestToken === getToken()) setUserLoading(false);
     }
   }, [endSession]);
 
   useEffect(() => { refreshUser(); }, [refreshUser]);
 
   // Called by the Login page after a successful sign-in
-  const startSession = useCallback(() => {
+  const startSession = useCallback((nextUser) => {
+    const normalized = normalizeUser(nextUser);
     setSessionEnded(false);
     setSessionActive(true);
-  }, []);
+    setUser(normalized);
+    setUserLoading(false);
+    if (normalized) localStorage.setItem('hrobit-auth-user', JSON.stringify(normalized));
+    setSessionVersion((version) => version + 1);
+    refreshUser();
+  }, [refreshUser]);
 
   // --- Collections (all from the backend API / PostgreSQL) ---
   const announcementsLoader = useCallback(() => dataApi.announcements.list(), []);
@@ -120,17 +148,17 @@ export function AppProvider({ children }) {
 
   const enabled = sessionActive && !sessionEnded;
 
-  const announcements = useCollection(announcementsLoader, enabled);
-  const events = useCollection(eventsLoader, enabled);
-  const quickLinks = useCollection(quickLinksLoader, enabled);
-  const contacts = useCollection(contactsLoader, enabled);
-  const kudos = useCollection(kudosLoader, enabled);
-  const notifications = useCollection(notificationsLoader, enabled);
-  const courses = useCollection(coursesLoader, enabled);
-  const faqs = useCollection(faqsLoader, enabled);
-  const games = useCollection(gamesLoader, enabled);
-  const employees = useCollection(employeesLoader, enabled);
-  const celebrations = useCollection(celebrationsLoader, enabled);
+  const announcements = useCollection(announcementsLoader, enabled, sessionVersion);
+  const events = useCollection(eventsLoader, enabled, sessionVersion);
+  const quickLinks = useCollection(quickLinksLoader, enabled, sessionVersion);
+  const contacts = useCollection(contactsLoader, enabled, sessionVersion);
+  const kudos = useCollection(kudosLoader, enabled, sessionVersion);
+  const notifications = useCollection(notificationsLoader, enabled, sessionVersion);
+  const courses = useCollection(coursesLoader, enabled, sessionVersion);
+  const faqs = useCollection(faqsLoader, enabled, sessionVersion);
+  const games = useCollection(gamesLoader, enabled, sessionVersion);
+  const employees = useCollection(employeesLoader, enabled, sessionVersion);
+  const celebrations = useCollection(celebrationsLoader, enabled, sessionVersion);
 
   // --- CRUD helpers: persist to the database, then refresh from the server ---
   const run = useCallback(async (action, refresh) => {
@@ -200,7 +228,7 @@ export function AppProvider({ children }) {
 
   const value = {
     // session
-    user, userLoading, sessionEnded, startSession, refreshUser, updateProfile, endSession,
+    user, userLoading, sessionEnded, sessionVersion, startSession, refreshUser, updateProfile, endSession,
     // collections: { items, loading, error, refresh }
     announcements: announcements.items, announcementsState: announcements,
     events: events.items, eventsState: events,

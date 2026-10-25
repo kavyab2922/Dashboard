@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowRight, ArrowUpRight, Award, BellRing, BookOpen, CalendarDays, ChevronRight, CirclePlay, Flame, Gift, GraduationCap, Heart, Megaphone, PartyPopper, Sparkles, Star, Users, Zap } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Award, BellRing, BookOpen, CalendarDays, ChevronRight, CirclePlay, Gift, GraduationCap, Heart, Megaphone, PartyPopper, Sparkles, Star, Users, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/format';
@@ -12,11 +12,15 @@ export function DashboardMainGrid({ summary, summaryLoading, summaryError }) {
     kudos, kudosState,
     quickLinks, quickLinksState,
     courses, coursesState, savedCourses,
+    games, gamesState,
     celebrations, celebrationsState,
   } = useApp();
 
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const pinned = announcements.filter((item) => item.pinned).slice(0, 2);
-  const upcoming = [...events].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
+  const upcoming = [...events].filter((item) => item.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3);
+  const playableGames = games.filter((game) => game.available).length;
   const upcomingCourse = courses.find((course) => !savedCourses.includes(course.id)) || courses[0];
 
   const pulse = summary?.pulse;
@@ -122,7 +126,7 @@ export function DashboardMainGrid({ summary, summaryLoading, summaryError }) {
               Play today's game <ArrowRight size={15}/>
             </Link>
             <div className="game-streak">
-              <Flame size={15}/> <span>Streak: <strong>1 day</strong></span>
+              <Sparkles size={15}/> <span><strong>{gamesState.loading ? '…' : playableGames}</strong> playable puzzles</span>
             </div>
           </div>
         </div>
