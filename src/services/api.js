@@ -8,6 +8,36 @@ export function getToken() {
   return localStorage.getItem('hrobit-auth-token');
 }
 
+/**
+ * Turns backend-relative media paths (e.g. "/uploads/cover-1.png") into absolute
+ * URLs so images load correctly from the Vite dev origin / any deployment host.
+ */
+export function resolveAssetUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+  return url;
+}
+
+/** Uploads an image file via the existing /api/upload endpoint (multipart). */
+async function uploadFile(file) {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.message || 'Upload failed');
+    error.status = response.status;
+    throw error;
+  }
+  return { ...payload.data, url: resolveAssetUrl(payload.data?.url) };
+}
+
 async function request(path, options = {}) {
   const token = getToken();
   const response = await fetch(`${API_BASE_URL}/api${path}`, {
@@ -37,6 +67,7 @@ export const authApi = {
   register(details) { return request('/auth/register', { method: 'POST', body: JSON.stringify(details) }); },
   me() { return get('/auth/me'); },
   updateProfile(changes) { return put('/profile', changes); },
+  uploadFile,
 };
 
 export const dataApi = {

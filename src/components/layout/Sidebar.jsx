@@ -23,10 +23,15 @@ const navigation = [
   ]},
 ];
 
+// Admin entry is only offered when the backend granted HR Admin access.
+const hrNavigation = { label: 'Administration', items: [
+  { to: '/admin', label: 'Admin console', icon: ShieldCheck },
+]};
+
 export default function Sidebar({ open, onClose, collapsed, onToggle, onHoverExpand }) {
-  const { announcements } = useApp();
+  const { announcements, isHrAdmin } = useApp();
   const unreadAnnouncements = announcements.filter((item) => !item.read).length;
-  const navGroups = navigation.map((group) => ({
+  const navGroups = [...navigation, ...(isHrAdmin ? [hrNavigation] : [])].map((group) => ({
     ...group,
     items: group.items.map((item) => item.to === '/announcements' && unreadAnnouncements > 0 ? { ...item, badge: String(unreadAnnouncements) } : item),
   }));

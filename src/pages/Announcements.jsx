@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
 export default function Announcements() {
-  const { announcements, announcementsState, setAnnouncementRead, role, setToast } = useApp();
+  const { announcements, announcementsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
   const [manage, setManage] = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
@@ -43,7 +43,7 @@ export default function Announcements() {
         eyebrow="THE LATEST FROM YOUR WORKPLACE"
         title="Announcements"
         description="A shared space for company milestones, executive updates, cultural news and essential workforce notices."
-        actions={role === 'HR Admin' ? <Button onClick={() => setManage(true)}>Manage posts</Button> : <Button variant="secondary" onClick={() => setManage(true)}>Demo manage view</Button>}
+        actions={isHrAdmin ? <Button onClick={() => setManage(true)}>Manage posts</Button> : null}
       />
 
       <div className="announcement-feature">

@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
 export default function Events() {
-  const { events, eventsState, setToast } = useApp();
+  const { events, eventsState, isHrAdmin, setToast } = useApp();
   const [view, setView] = useState('list');
   const [manage, setManage] = useState(false);
   const sorted = [...events].sort((a,b) => a.date.localeCompare(b.date));
@@ -34,7 +34,7 @@ export default function Events() {
         eyebrow="MAKE TIME FOR CONNECTION"
         title="Upcoming events"
         description="Company townhalls, technical deep dives, wellness workshops and team gatherings."
-        actions={<Button variant="secondary" onClick={() => setManage(true)}>Manage events</Button>}
+        actions={isHrAdmin ? <Button variant="secondary" onClick={() => setManage(true)}>Manage events</Button> : null}
       />
 
       <div className="events-hero">

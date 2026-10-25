@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import useClickOutside from '../../hooks/useClickOutside';
 import { Avatar } from '../common/UI';
+import RoleSwitch from '../common/RoleSwitch';
 
 const palettes = [
   { id: 'sapphire', label: 'Sapphire Blue', color: '#2563eb', desc: 'Enterprise Tech' },
@@ -14,7 +15,7 @@ const palettes = [
 
 export default function Header({ pageTitle, onMenuClick }) {
   const {
-    theme, setTheme, colorTheme, setColorTheme, role, setRole,
+    theme, setTheme, colorTheme, setColorTheme, role,
     user,
     announcements, events, quickLinks, contacts, courses,
     notifications, markNotificationRead, markAllNotificationsRead, setToast
@@ -252,22 +253,7 @@ export default function Header({ pageTitle, onMenuClick }) {
               <button onClick={() => { navigate('/profile'); setProfileOpen(false); }}>
                 My profile <ArrowUpRight size={14} />
               </button>
-              <div className="role-switch">
-                <label htmlFor="demo-role">Demo view</label>
-                <select
-                  id="demo-role"
-                  value={role}
-                  onChange={(event) => {
-                    setRole(event.target.value);
-                    setProfileOpen(false);
-                    setToast(`Switched to ${event.target.value} demo view.`);
-                  }}
-                >
-                  <option>Employee</option>
-                  <option>HR Admin</option>
-                </select>
-              </div>
-              <small className="demo-warning">Demo roles are not security controls.</small>
+              <RoleSwitch onSwitched={() => setProfileOpen(false)} />
             </div>
           )}
         </div>

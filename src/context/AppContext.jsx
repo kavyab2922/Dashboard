@@ -73,7 +73,7 @@ export function AppProvider({ children }) {
   // UI preferences (not business data) stay in local storage
   const [theme, setTheme] = useState(prefs.theme || 'light');
   const [colorTheme, setColorTheme] = useState(prefs.colorTheme || 'sapphire');
-  const [role, setRole] = useState(prefs.role || 'Employee');
+  const [role, setRoleState] = useState(prefs.role || 'Employee');
   const [savedCourses, setSavedCourses] = useState(prefs.savedCourses || []);
   const [joinedGroups, setJoinedGroups] = useState(prefs.joinedGroups || []);
   const [toast, setToast] = useState('');
@@ -85,6 +85,26 @@ export function AppProvider({ children }) {
   });
   const [userLoading, setUserLoading] = useState(() => Boolean(getToken()));
   const [sessionEnded, setSessionEnded] = useState(false);
+
+  // Server-granted access role (from the JWT / database via /auth/me).
+  // The active mode can never exceed what the signed-in account is authorized for.
+  const accessRole = user?.access_role || 'Employee';
+  const canUseHrAdmin = accessRole === 'HR Admin';
+  const isHrAdmin = role === 'HR Admin' && canUseHrAdmin;
+
+  /** Validates against the granted access role; returns false when not allowed. */
+  const setRole = useCallback((nextRole) => {
+    if (nextRole === 'HR Admin' && !canUseHrAdmin) return false;
+    setRoleState(nextRole);
+    return true;
+  }, [canUseHrAdmin]);
+
+  // Drop an HR Admin mode the signed-in account is not entitled to
+  // (e.g. a stale preference left behind by a previous session).
+  useEffect(() => {
+    if (userLoading) return;
+    if (role === 'HR Admin' && !canUseHrAdmin) setRoleState('Employee');
+  }, [userLoading, role, canUseHrAdmin]);
 
   const endSession = useCallback(() => {
     localStorage.removeItem('hrobit-auth-token');
@@ -250,6 +270,7 @@ export function AppProvider({ children }) {
     savedCourses, toggleSavedCourse,
     joinedGroups, setJoinedGroups,
     theme, setTheme, colorTheme, setColorTheme, role, setRole,
+    accessRole, canUseHrAdmin, isHrAdmin,
     toast, setToast,
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

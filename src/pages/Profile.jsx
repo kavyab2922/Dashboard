@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react';
-import { BadgeCheck, CalendarDays, Edit3, Mail, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { BadgeCheck, CalendarDays, Camera, Check, Edit3, Mail, MapPin, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Avatar, Button, FormField, Modal, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
-import { dataApi, getToken } from '../services/api';
+import { authApi, dataApi, getToken, resolveAssetUrl } from '../services/api';
 import { formatDate } from '../utils/format';
+import defaultCover from '../assets/default-cover.svg';
+
+const COVER_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const MAX_COVER_SIZE = 5 * 1024 * 1024; // keep in sync with backend MAX_FILE_SIZE
 
 function computeAnniversary(joinedDate) {
   if (!joinedDate) return null;
@@ -29,6 +33,12 @@ export default function Profile() {
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Cover image: unsaved preview blob + upload state
+  const coverInputRef = useRef(null);
+  const [coverPreview, setCoverPreview] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
+  const [coverSaving, setCoverSaving] = useState(false);
+
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState('');
@@ -44,6 +54,59 @@ export default function Profile() {
       .finally(() => { if (!cancelled && requestToken === getToken()) setSummaryLoading(false); });
     return () => { cancelled = true; };
   }, [sessionVersion]);
+
+  const savedCover = resolveAssetUrl(user?.cover) || null;
+  const coverSrc = coverPreview || savedCover || defaultCover;
+
+  const clearCoverPreview = () => {
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverPreview(null);
+    setCoverFile(null);
+    if (coverInputRef.current) coverInputRef.current.value = '';
+  };
+
+  const onCoverFileSelected = (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!COVER_TYPES.includes(file.type)) {
+      clearCoverPreview();
+      setToast('Unsupported file type. Please choose a JPG, JPEG, PNG or WebP image.');
+      return;
+    }
+    if (file.size > MAX_COVER_SIZE) {
+      clearCoverPreview();
+      setToast('Image is too large. Maximum cover image size is 5 MB.');
+      return;
+    }
+    if (coverPreview) URL.revokeObjectURL(coverPreview);
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+  };
+
+  const onCoverImageError = (event) => {
+    const img = event.currentTarget;
+    if (img.dataset.fallback !== '1') {
+      img.dataset.fallback = '1';
+      img.src = defaultCover; // saved image failed to load → show the default banner
+    } else {
+      img.style.display = 'none'; // default asset unavailable → keep the gradient
+    }
+  };
+
+  const saveCover = async () => {
+    if (!coverFile) return;
+    setCoverSaving(true);
+    try {
+      const uploaded = await authApi.uploadFile(coverFile);
+      await updateProfile({ coverUrl: uploaded.url }); // refreshes user from the server
+      clearCoverPreview();
+      setToast('Cover image updated.');
+    } catch (err) {
+      setToast(err.message || 'Unable to save your cover image.');
+    } finally {
+      setCoverSaving(false);
+    }
+  };
 
   const roleTitle = user?.role || '';
   const location = user?.location || '';
@@ -84,10 +147,44 @@ export default function Profile() {
 
       <div className="profile-hero">
         <div className="profile-cover">
-          {user?.cover && (
-            <img src={user.cover} alt="Profile Cover" className="profile-cover-img" />
-          )}
+          <img
+            key={coverSrc}
+            src={coverSrc}
+            alt="Profile cover"
+            className="profile-cover-img"
+            onError={onCoverImageError}
+          />
           <div className="profile-cover-overlay" />
+
+          {coverPreview ? (
+            <div className="cover-preview-bar">
+              <span className="cover-preview-label">Preview — not saved yet</span>
+              <Button size="sm" variant="secondary" onClick={clearCoverPreview} disabled={coverSaving}>
+                <X size={14}/> Cancel
+              </Button>
+              <Button size="sm" onClick={saveCover} disabled={coverSaving}>
+                <Check size={14}/> {coverSaving ? 'Saving…' : 'Save cover'}
+              </Button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="cover-upload-button"
+              title="Upload cover image"
+              aria-label="Upload cover image"
+              onClick={() => coverInputRef.current && coverInputRef.current.click()}
+            >
+              <Camera size={12}/>
+              {/* <span>Upload cover image</span> */}
+            </button>
+          )}
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="cover-file-input"
+            onChange={onCoverFileSelected}
+          />
         </div>
 
         <div className="profile-hero-person">

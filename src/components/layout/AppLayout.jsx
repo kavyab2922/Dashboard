@@ -11,7 +11,7 @@ import { getToken } from '../../services/api';
 const titles = {
   '/': 'Dashboard', '/announcements': 'Announcements', '/events': 'Upcoming events', '/quick-links': 'Quick links',
   '/hr-contacts': 'Quick Connect', '/faq': 'HR FAQ assistant', '/games': 'Daily games', '/learning': 'Learning hub',
-  '/recognition': 'Kudos & recognition', '/community': 'Employee community', '/profile': 'My profile', '/settings': 'Settings', '/admin': 'Demo admin',
+  '/recognition': 'Kudos & recognition', '/community': 'Employee community', '/profile': 'My profile', '/settings': 'Settings', '/admin': 'Admin console',
 };
 
 export default function AppLayout() {
