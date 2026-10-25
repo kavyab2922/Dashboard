@@ -210,8 +210,7 @@ input, textarea, select {
   flex-direction: column;
   z-index: 40;
   transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s ease;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .sidebar.sidebar-collapsed {
@@ -306,10 +305,47 @@ input, textarea, select {
   flex-direction: column;
   gap: 6px;
   flex: 1;
+  min-height: 0;
+  /* Spread nav items over the full sidebar height so neither state
+     clusters them at the top. Flexbox redistributes this automatically
+     when the window height changes. */
+  justify-content: space-evenly;
+  /* Only the nav scrolls when the window is short, so the collapse
+     toggle below it stays pinned to the bottom of the sidebar. */
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.55);
+}
+
+/* Collapsed rail: hide the scrollbar so its reserved gutter cannot shift
+   the icons off-center. Scrolling still works via wheel/touch. */
+.sidebar-collapsed .sidebar-nav {
+  scrollbar-width: none;
+}
+
+.sidebar-collapsed .sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Flatten the group wrappers so every title/item is a direct flex child
+   of .sidebar-nav; space-evenly then yields identical icon spacing in the
+   expanded and collapsed states (collapsed hides only the titles). */
 .nav-group {
-  margin-bottom: 12px;
+  display: contents;
 }
 
 .nav-group-title {

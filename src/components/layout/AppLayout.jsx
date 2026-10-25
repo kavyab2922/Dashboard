@@ -21,12 +21,18 @@ export default function AppLayout() {
   const { toast, sessionEnded } = useApp();
   const title = titles[location.pathname] || 'Employee hub';
 
+  // Desktop only: collapse when the cursor enters the page body,
+  // expand again when it returns to the sidebar. (max-width: 900px is the mobile drawer)
+  const isDesktop = () => window.matchMedia('(min-width: 901px)').matches;
+  const handleBodyEnter = () => { if (isDesktop() && !mobileOpen) setCollapsed(true); };
+  const handleSidebarEnter = () => { if (isDesktop()) setCollapsed(false); };
+
   if (sessionEnded || !getToken()) return <Navigate to="/login" replace />;
 
   return <div className={`app-shell ${collapsed ? 'sidebar-is-collapsed' : ''}`}>
-    <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
+    <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} onHoverExpand={handleSidebarEnter} />
     <Header pageTitle={title} onMenuClick={() => setMobileOpen(true)} />
-    <div className="main-shell"><main className="main-content"><AnimatePresence mode="wait"><motion.div key={location.pathname} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: .15 }}><Outlet /></motion.div></AnimatePresence><footer className="app-footer"><span>© 2026 HROrbit · Employee experience platform</span><span><span className="footer-status-dot" /> Connected to HROrbit API</span></footer></main></div>
+    <div className="main-shell"><main className="main-content" onMouseEnter={handleBodyEnter}><AnimatePresence mode="wait"><motion.div key={location.pathname} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -3 }} transition={{ duration: .15 }}><Outlet /></motion.div></AnimatePresence><footer className="app-footer"><span>© 2026 HROrbit · Employee experience platform</span><span><span className="footer-status-dot" /> Connected to HROrbit API</span></footer></main></div>
     <FAQChatbot />
     <BirthdayModal />
     <AnimatePresence>{toast && <motion.div className="toast-message" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}><span>✓</span>{toast}</motion.div>}</AnimatePresence>
