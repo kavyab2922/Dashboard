@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   ArrowUpRight,
@@ -11,27 +11,98 @@ import {
   Sparkles,
   UserRound,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { APP_SUGGESTIONS } from '../../data/appGuide';
+import { buildAssistantReply } from '../../utils/appAssistant';
 
-const noAnswer = 'I could not find an approved answer for that question. Try rephrasing it, or reach an HR representative through Quick Connect.';
 const MAX_MESSAGE_LENGTH = 500;
-const MAX_SUGGESTIONS = 4;
+const MAX_APP_SUGGESTIONS = 3;
+const MAX_HR_SUGGESTIONS = 3;
 const REPLY_DELAY = 400;
 
-function Message({ message, onContactHr }) {
+const LABELS = {
+  app: 'HROrbit guide',
+  unavailable: 'HROrbit guide',
+  clarify: 'HROrbit guide',
+  capabilities: 'HROrbit guide',
+  fallback: 'HROrbit guide',
+};
+
+function SuggestionGroup({ label, items, busy, disabled, onAsk }) {
+  if (!items.length) return null;
+  return (
+    <div className="chat-suggestions" aria-label={label}>
+      <span className="chat-section-label">{label}</span>
+      {items.map((item) => (
+        <button
+          key={item.id ?? item.question}
+          type="button"
+          className="chat-suggestion"
+          onClick={() => onAsk(item.question)}
+          disabled={busy || disabled}
+        >
+          <span className="chat-suggestion-category">{item.category || 'HROrbit'}</span>
+          <span className="chat-suggestion-text">{item.question}</span>
+          <ArrowUpRight size={13} className="chat-suggestion-arrow" aria-hidden="true" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Message({ message, onAsk, onContactHr, onNavigate }) {
   const isUser = message.role === 'user';
-  const label = isUser ? 'You' : message.category ? `Orbit Assistant · ${message.category}` : 'Orbit Assistant';
+  const tag = message.role === 'bot' ? (message.category || LABELS[message.kind]) : null;
+  const label = isUser ? 'You' : `Orbit Assistant${tag ? ` · ${tag}` : ''}`;
+  const isCaveat = message.kind === 'unavailable' || message.kind === 'fallback';
 
   return (
     <div className={`chat-message-row ${isUser ? 'is-user' : 'is-bot'}`}>
       {!isUser && <span className="message-avatar" aria-hidden="true"><Bot size={14} /></span>}
-      <div className={`chat-message ${isUser ? 'user' : 'bot'} ${message.kind === 'no-answer' ? 'is-warning' : ''}`}>
+      <div className={`chat-message ${isUser ? 'user' : 'bot'} ${isCaveat ? 'is-warning' : ''}`}>
         <span className="message-label">{label}</span>
-        <p>{message.text}</p>
-        {message.kind === 'no-answer' && (
-          <button type="button" className="chat-message-action" onClick={onContactHr}>
-            Contact HR <ArrowUpRight size={13} />
+        {message.title && <strong className="chat-message-title">{message.title}</strong>}
+        {message.text && <p>{message.text}</p>}
+
+        {message.steps?.length > 0 && (
+          <ol className="chat-steps">
+            {message.steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        )}
+
+        {message.areas?.length > 0 && (
+          <ul className="chat-areas">
+            {message.areas.map((area) => <li key={area}>{area}</li>)}
+          </ul>
+        )}
+
+        {message.note && <p className="chat-message-note">{message.note}</p>}
+
+        {message.options?.length > 0 && (
+          <div className="chat-options">
+            {message.options.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                className="chat-option"
+                onClick={() => (option.route ? onNavigate(option.route) : onAsk(option.question || option.label))}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {message.route && message.routeLabel && (
+          <button type="button" className="chat-message-action" onClick={() => onNavigate(message.route)}>
+            {message.routeLabel} <ArrowUpRight size={13} />
+          </button>
+        )}
+
+        {message.kind === 'fallback' && (
+          <button type="button" className="chat-contact-link" onClick={onContactHr}>
+            <LifeBuoy size={12} aria-hidden="true" /> Talk to a person
           </button>
         )}
       </div>
@@ -40,38 +111,38 @@ function Message({ message, onContactHr }) {
   );
 }
 
-function WelcomeScreen({ firstName, suggestions, busy, kbState, onAsk }) {
+function WelcomeScreen({ firstName, appSuggestions, hrSuggestions, busy, kbState, onAsk }) {
   return (
     <div className="chat-welcome">
       <span className="chat-welcome-icon" aria-hidden="true"><Sparkles size={18} /></span>
-      <span className="chat-welcome-eyebrow">Hi {firstName} · HR FAQ assistant</span>
+      <span className="chat-welcome-eyebrow">Hi {firstName} · Orbit Assistant</span>
       <h2>How can I help you today?</h2>
       <p>
-        Ask about HR policies, leave, attendance, payroll, benefits, company holidays, or any other HR topic.
-        Every answer comes from the HR knowledge base maintained by HR.
+        Ask how to use HROrbit — your dashboard, profile, announcements, kudos, Quick Connect and more — or ask
+        about HR policies like leave, payroll and benefits. Policy answers come from the HR knowledge base.
       </p>
-      {suggestions.length > 0 ? (
-        <div className="chat-suggestions" aria-label="Suggested questions">
-          <span className="chat-section-label">Suggested questions</span>
-          {suggestions.map((item) => (
-            <button
-              key={item.id ?? item.question}
-              type="button"
-              className="chat-suggestion"
-              onClick={() => onAsk(item.question)}
-              disabled={busy || kbState !== 'ready'}
-            >
-              <span className="chat-suggestion-category">{item.category || 'HR'}</span>
-              <span className="chat-suggestion-text">{item.question}</span>
-              <ArrowUpRight size={13} className="chat-suggestion-arrow" aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      ) : (
+
+      <SuggestionGroup
+        label="Using HROrbit"
+        items={appSuggestions}
+        busy={busy}
+        disabled={false}
+        onAsk={onAsk}
+      />
+
+      <SuggestionGroup
+        label="From the HR knowledge base"
+        items={hrSuggestions}
+        busy={busy}
+        disabled={kbState === 'loading' || kbState === 'error'}
+        onAsk={onAsk}
+      />
+
+      {hrSuggestions.length === 0 && (
         <p className="chat-welcome-note">
-          {kbState === 'loading' && <><span className="chat-kb-spinner" aria-hidden="true" />Loading approved answers…</>}
-          {kbState === 'error' && 'Suggested questions are unavailable until the knowledge base reconnects.'}
-          {(kbState === 'empty' || kbState === 'ready') && 'No suggested questions yet — type your question below and I will search the knowledge base.'}
+          {kbState === 'loading' && <><span className="chat-kb-spinner" aria-hidden="true" />Loading approved HR answers…</>}
+          {kbState === 'error' && 'HR answers are unavailable until the knowledge base reconnects — app guides still work.'}
+          {(kbState === 'empty' || kbState === 'ready') && 'No suggested HR questions yet — type your question below and I will search the knowledge base.'}
         </p>
       )}
     </div>
@@ -81,12 +152,14 @@ function WelcomeScreen({ firstName, suggestions, busy, kbState, onAsk }) {
 export default function FAQChatbot() {
   const { faqs, faqsState, user } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const threadRef = useRef(null);
   const inputRef = useRef(null);
   const launcherRef = useRef(null);
   const panelRef = useRef(null);
   const replyTimer = useRef(null);
   const processingRef = useRef(false);
+  const sendRef = useRef(null);
   const idRef = useRef(0);
 
   const [open, setOpen] = useState(false);
@@ -96,21 +169,16 @@ export default function FAQChatbot() {
 
   const firstName = (user?.name || 'there').trim().split(/\s+/)[0];
 
-  const allQuestions = useMemo(
-    () => faqs.map((item) => ({
-      ...item,
-      normalized: `${item.question || ''} ${item.category || ''} ${item.answer || ''}`.toLowerCase(),
-    })),
-    [faqs],
-  );
+  const appSuggestions = APP_SUGGESTIONS.slice(0, MAX_APP_SUGGESTIONS).map((question) => ({
+    id: `app-${question}`,
+    question,
+    category: 'HROrbit guide',
+  }));
 
-  const suggestions = useMemo(
-    () => faqs
-      .filter((item) => item?.question)
-      .slice(0, MAX_SUGGESTIONS)
-      .map((item) => ({ id: item.id, question: item.question, category: item.category })),
-    [faqs],
-  );
+  const hrSuggestions = faqs
+    .filter((item) => item?.question)
+    .slice(0, MAX_HR_SUGGESTIONS)
+    .map((item) => ({ id: item.id, question: item.question, category: item.category || 'HR' }));
 
   const kbState = faqsState.loading ? 'loading' : faqsState.error ? 'error' : faqs.length ? 'ready' : 'empty';
   const kbLabel = kbState === 'loading'
@@ -132,6 +200,12 @@ export default function FAQChatbot() {
     scrollToLatest();
   }, [open, messages, isProcessing, scrollToLatest]);
 
+  // Every route change dismisses the assistant, however the navigation happened.
+  useEffect(() => {
+    // Only the pathname matters: query/hash updates should not close the chat.
+    setOpen(false);
+  }, [location.pathname]);
+
   // Open/close lifecycle: focus the composer, and dismiss the assistant on
   // Escape or on any interaction outside the panel (click anywhere else).
   useEffect(() => {
@@ -145,7 +219,6 @@ export default function FAQChatbot() {
     const handleOutsideInteraction = (event) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      // Inside the panel: keep chatting. On the launcher: its own click toggles.
       if (panelRef.current?.contains(target)) return;
       if (launcherRef.current?.contains(target)) return;
       setOpen(false);
@@ -161,14 +234,21 @@ export default function FAQChatbot() {
 
   useEffect(() => () => window.clearTimeout(replyTimer.current), []);
 
+  // Pages (e.g. the HR FAQ assistant page) can open the chat and ask a question:
+  // window.dispatchEvent(new CustomEvent('hrobit-open-chat', { detail: { question } }))
   useEffect(() => {
-    const openAssistant = () => setOpen(true);
+    const openAssistant = (event) => {
+      setOpen(true);
+      const question = event?.detail?.question;
+      if (!question) return;
+      window.setTimeout(() => sendRef.current?.(question), 80);
+    };
     window.addEventListener('hrobit-open-chat', openAssistant);
     return () => window.removeEventListener('hrobit-open-chat', openAssistant);
   }, []);
 
   const sendMessage = (rawText) => {
-    const message = rawText.trim();
+    const message = String(rawText || '').trim();
     if (!message || processingRef.current) return;
 
     processingRef.current = true;
@@ -178,18 +258,18 @@ export default function FAQChatbot() {
 
     window.clearTimeout(replyTimer.current);
     replyTimer.current = window.setTimeout(() => {
-      const terms = message.toLowerCase().split(/\W+/).filter((word) => word.length > 3);
-      const found = allQuestions
-        .map((faq) => ({ faq, score: terms.reduce((sum, term) => sum + (faq.normalized.includes(term) ? 1 : 0), 0) }))
-        .sort((a, b) => b.score - a.score)[0];
-
-      setMessages((items) => [...items, found?.score
-        ? { id: `b-${++idRef.current}`, role: 'bot', text: found.faq.answer, category: found.faq.category }
-        : { id: `b-${++idRef.current}`, role: 'bot', text: noAnswer, kind: 'no-answer' }]);
+      const reply = buildAssistantReply(message, faqs, { firstName }) || {
+        kind: 'fallback',
+        title: 'Something went wrong',
+        text: 'I could not work out an answer for that. Please try rephrasing it.',
+      };
+      setMessages((items) => [...items, { id: `b-${++idRef.current}`, role: 'bot', ...reply }]);
       processingRef.current = false;
       setIsProcessing(false);
     }, REPLY_DELAY);
   };
+
+  sendRef.current = sendMessage;
 
   const closeAssistant = () => {
     setOpen(false);
@@ -210,6 +290,12 @@ export default function FAQChatbot() {
 
   const openContacts = () => {
     navigate('/hr-contacts');
+    setOpen(false);
+  };
+
+  const goTo = (route) => {
+    if (!route) return;
+    navigate(route);
     setOpen(false);
   };
 
@@ -272,14 +358,23 @@ export default function FAQChatbot() {
             {messages.length === 0 ? (
               <WelcomeScreen
                 firstName={firstName}
-                suggestions={suggestions}
+                appSuggestions={appSuggestions}
+                hrSuggestions={hrSuggestions}
                 busy={isProcessing}
                 kbState={kbState}
                 onAsk={sendMessage}
               />
             ) : (
               <div className="chat-messages">
-                {messages.map((message) => <Message message={message} key={message.id} onContactHr={openContacts} />)}
+                {messages.map((message) => (
+                  <Message
+                    message={message}
+                    key={message.id}
+                    onAsk={sendMessage}
+                    onContactHr={openContacts}
+                    onNavigate={goTo}
+                  />
+                ))}
                 {isProcessing && (
                   <div className="chat-message-row is-bot">
                     <span className="message-avatar" aria-hidden="true"><Bot size={14} /></span>
@@ -299,8 +394,8 @@ export default function FAQChatbot() {
                 ref={inputRef}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
-                placeholder="Ask about leave, payroll, benefits…"
-                aria-label="Ask an HR question"
+                placeholder="Ask about HROrbit or HR policies…"
+                aria-label="Ask an HR question about HROrbit"
                 maxLength={MAX_MESSAGE_LENGTH}
                 autoComplete="off"
               />
@@ -324,7 +419,7 @@ export default function FAQChatbot() {
                 <span>Contact HR</span>
               </button>
               <p className="chatbot-compose-hint">
-                {isProcessing ? 'Searching the knowledge base…' : 'Press Enter to send'}
+                {isProcessing ? 'Searching HROrbit help and HR answers…' : 'Press Enter to send'}
               </p>
             </div>
           </form>
