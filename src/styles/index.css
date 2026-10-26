@@ -5398,6 +5398,40 @@ input, textarea, select {
   .quicklink-card { min-height: 220px; }
 }
 
+/* People & Culture Directory */
+.contacts-hero {
+  background: linear-gradient(135deg, var(--card-bg) 0%, var(--card-subtle) 100%);
+}
+.contacts-hero-copy { position: relative; z-index: 1; max-width: 720px; }
+.contacts-hero-copy p { max-width: 620px; margin: 10px 0 0; color: var(--text-body); font-size: 14px; line-height: 1.65; }
+.contacts-hero-stats { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.contacts-hero-stats span { display: inline-flex; align-items: baseline; gap: 7px; padding: 9px 13px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255, 255, 255, .72); color: var(--text-muted); font-size: 12px; font-weight: 600; }
+.contacts-hero-stats strong { color: var(--text-main); font-size: 18px; line-height: 1; }
+.contacts-filter-panel { margin-bottom: 20px; padding: 20px; }
+.contacts-filter-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.contacts-filter-kicker { display: block; margin-bottom: 4px; color: var(--primary); font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.contacts-filter-heading h2 { margin: 0; color: var(--text-main); font-size: 18px; letter-spacing: -.02em; }
+.contacts-filter-count { flex-shrink: 0; color: var(--text-muted); font-size: 12px; font-weight: 700; }
+.contacts-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 220px; align-items: end; gap: 12px; }
+.contacts-search { width: 100%; height: 46px; border-radius: 12px; background: var(--card-subtle); }
+.contacts-search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+.contacts-department-filter { display: grid; gap: 6px; }
+.contacts-department-filter > span { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.contacts-department-filter select { width: 100%; height: 46px; padding: 0 34px 0 12px; border: 1px solid var(--border); border-radius: 12px; outline: none; background: var(--card-subtle); color: var(--text-main); font-size: 13px; font-weight: 700; cursor: pointer; transition: border-color .18s ease, box-shadow .18s ease, background .18s ease; }
+.contacts-department-filter select:hover, .contacts-department-filter select:focus { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px var(--primary-glow); }
+.contacts-grid .contact-card { min-height: 380px; }
+.contact-card-body .contact-card-actions { margin-top: auto; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 640px) {
+  .contacts-hero { padding: 22px 20px; }
+  .contacts-hero-stats { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  .contacts-filter-panel { padding: 16px; }
+  .contacts-filter-heading { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .contacts-toolbar { grid-template-columns: 1fr; }
+  .contacts-department-filter select, .contacts-search { height: 44px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton-avatar,
   .skeleton-lines span,

@@ -59,14 +59,25 @@ export default function HRContacts() {
       </div>
 
       <Panel className="contacts-filter-panel">
+        <div className="contacts-filter-heading">
+          <div>
+            <span className="contacts-filter-kicker">Find your HR partner</span>
+            <h2>Browse the directory</h2>
+          </div>
+          <span className="contacts-filter-count">{filtered.length} of {contacts.length} contacts</span>
+        </div>
         <div className="contacts-toolbar">
-          <label className="inline-search">
+          <label className="inline-search contacts-search">
             <Search size={16}/>
+            <span className="sr-only">Search HR contacts</span>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, team or specialty..."/>
           </label>
-          <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Filter by department">
-            {teams.map((item) => <option key={item}>{item}</option>)}
-          </select>
+          <label className="contacts-department-filter">
+            <span><Building2 size={15}/> Department</span>
+            <select value={team} onChange={(e) => setTeam(e.target.value)} aria-label="Filter by department">
+              {teams.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </label>
         </div>
       </Panel>
 

@@ -130,14 +130,6 @@ export default function Recognition() {
             </div>
           </Panel>
 
-          <Panel className="recognition-aside-panel recognition-guide">
-            <h3>Make it meaningful</h3>
-            <ul>
-              <li>Say what they did</li>
-              <li>Explain the impact it had</li>
-              <li>Keep it specific and kind</li>
-            </ul>
-          </Panel>
         </aside>
       </div>
 
