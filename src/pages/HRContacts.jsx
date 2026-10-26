@@ -4,6 +4,12 @@ import EditableCollectionPage from '../components/common/EditableCollectionPage'
 import { Avatar, Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
+const buildTeamsChatUrl = (email) => (
+  email
+    ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}`
+    : null
+);
+
 export default function HRContacts() {
   const { contacts, contactsState, setToast } = useApp();
   const [search, setSearch] = useState('');
@@ -143,12 +149,17 @@ export default function HRContacts() {
                     <Mail size={14}/> Email Partner
                   </a>
                 )}
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setToast(`${contact.name}: ${contact.focus}`)}
-                >
-                  Schedule chat <ArrowUpRight size={14}/>
-                </button>
+                {contact.email && (
+                  <a
+                    className="btn btn-ghost btn-sm"
+                    href={buildTeamsChatUrl(contact.email)}
+                    aria-label={`Open Teams chat with ${contact.name}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Schedule chat <ArrowUpRight size={14}/>
+                  </a>
+                )}
               </div>
             </div>
           </Panel>

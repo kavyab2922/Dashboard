@@ -9,6 +9,13 @@ import defaultCover from '../assets/default-cover.svg';
 const COVER_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const MAX_COVER_SIZE = 5 * 1024 * 1024; // keep in sync with backend MAX_FILE_SIZE
 
+function formatJoiningDate(joinedDate) {
+  if (!joinedDate) return 'Not available';
+  const parsed = new Date(`${String(joinedDate).slice(0, 10)}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return 'Not available';
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(parsed);
+}
+
 function computeAnniversary(joinedDate) {
   if (!joinedDate) return null;
   const joined = new Date(`${String(joinedDate).slice(0, 10)}T12:00:00`);
@@ -112,6 +119,7 @@ export default function Profile() {
   const location = user?.location || '';
   const bio = user?.bio || '';
   const interests = Array.isArray(user?.interests) ? user.interests.filter(Boolean) : [];
+  const joiningDate = formatJoiningDate(user?.joined);
   const anniversary = computeAnniversary(user?.joined);
 
   const save = async (event) => {
@@ -221,7 +229,7 @@ export default function Profile() {
             ) : bio ? (
               <p>{bio}</p>
             ) : (
-              <p className="muted">No bio on file yet. Add one with “Edit profile”.</p>
+              <p className="muted">No information added yet.</p>
             )}
             {interests.length > 0 ? (
               <div className="profile-interest-tags">
@@ -263,6 +271,10 @@ export default function Profile() {
               <div>
                 <small>TIMEZONE</small>
                 <strong>Asia/Kolkata (IST · UTC+5:30)</strong>
+              </div>
+              <div>
+                <small>JOINING DATE</small>
+                <strong>{joiningDate}</strong>
               </div>
             </div>
           </Panel>
