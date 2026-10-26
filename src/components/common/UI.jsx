@@ -81,12 +81,12 @@ export function EmptyState({ icon: Icon = Search, title = 'Nothing here yet', de
   );
 }
 
-export function Modal({ open, onClose, title, description, children, wide = false }) {
+export function Modal({ open, onClose, title, description, children, wide = false, className = '' }) {
   if (!open) return null;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
       <motion.div
-        className={`modal ${wide ? 'modal-wide' : ''}`}
+        className={`modal ${wide ? 'modal-wide' : ''} ${className}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-label={title}

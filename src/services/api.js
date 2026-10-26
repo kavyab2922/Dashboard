@@ -104,7 +104,10 @@ export const dataApi = {
   courses: { list: () => get('/courses') },
   faqs: { list: () => get('/faqs') },
   games: { list: () => get('/games') },
-  employees: { list: () => get('/employees') },
+  employees: {
+    list: () => get('/employees'),
+    search: (query, limit = 8) => get(`/employees?q=${encodeURIComponent(String(query || '').trim())}&limit=${limit}`),
+  },
   celebrations: { list: () => get('/celebrations') },
   dashboard: { summary: () => get('/dashboard/summary') },
 };
