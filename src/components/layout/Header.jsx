@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity } from 'lucide-react';
+import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import useClickOutside from '../../hooks/useClickOutside';
-import { Avatar } from '../common/UI';
+import { Avatar, Button, Modal } from '../common/UI';
 import RoleSwitch from '../common/RoleSwitch';
 
 const palettes = [
@@ -18,7 +18,7 @@ export default function Header({ pageTitle, onMenuClick }) {
     theme, setTheme, colorTheme, setColorTheme, role,
     user,
     announcements, events, quickLinks, contacts, courses,
-    notifications, markNotificationRead, markAllNotificationsRead, setToast
+    notifications, markNotificationRead, markAllNotificationsRead, setToast, endSession
   } = useApp();
 
   const displayName = user?.name || 'Employee';
@@ -29,6 +29,7 @@ export default function Header({ pageTitle, onMenuClick }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const navigate = useNavigate();
 
   // One ref per navbar dropdown (trigger + panel) for outside-click closing.
@@ -69,8 +70,16 @@ export default function Header({ pageTitle, onMenuClick }) {
   // Close the open dropdown when clicking anywhere outside it or its trigger.
   useClickOutside(dropdownRefs, searchOpen || paletteOpen || notifOpen || profileOpen, closeAll);
 
+  const confirmLogout = () => {
+    endSession();
+    setLogoutConfirmOpen(false);
+    closeAll();
+    navigate('/login', { replace: true });
+  };
+
   return (
-    <header className="topbar">
+    <>
+      <header className="topbar">
       
 
       <Link to="/" className="topbar-brand">
@@ -254,10 +263,36 @@ export default function Header({ pageTitle, onMenuClick }) {
                 My profile <ArrowUpRight size={14} />
               </button>
               <RoleSwitch onSwitched={() => setProfileOpen(false)} />
+              <button
+                className="profile-menu-logout"
+                onClick={() => {
+                  setProfileOpen(false);
+                  setLogoutConfirmOpen(true);
+                }}
+              >
+                <LogOut size={14} /> Logout
+              </button>
             </div>
           )}
         </div>
       </div>
-    </header>
+      </header>
+
+      <Modal
+        open={logoutConfirmOpen}
+        onClose={() => setLogoutConfirmOpen(false)}
+        title="Log out?"
+        description="Are you sure you want to log out of HROrbit?"
+      >
+        <div className="modal-actions">
+          <Button variant="secondary" onClick={() => setLogoutConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={confirmLogout}>
+            <LogOut size={14} /> Log out
+          </Button>
+        </div>
+      </Modal>
+    </>
   );
 }
