@@ -6704,6 +6704,12 @@ input, textarea, select {
 .mood-picker-error { justify-content: space-between; color: #b91c1c; }
 .mood-picker-error button { border: 0; background: none; color: #7c3aed; font-size: 11px; font-weight: 700; cursor: pointer; }
 .mood-save-sharing { margin-top: 2px; }
+.mood-lock-notice { display: flex; align-items: center; gap: 9px; margin-top: 14px; padding: 10px 12px; border: 1px solid rgba(13, 148, 136, .2); border-radius: 11px; background: rgba(240, 253, 250, .86); color: #0f766e; font-size: 11px; line-height: 1.45; }
+.mood-lock-notice strong { color: var(--text-main); }
+.mood-lock-notice b { color: #0f766e; font-variant-numeric: tabular-nums; }
+.mood-option-locked-selected { border-color: var(--teal) !important; background: linear-gradient(145deg, #f0fdfa, #ccfbf1) !important; box-shadow: 0 0 0 3px rgba(13, 148, 136, .12), 0 5px 12px rgba(13, 148, 136, .1); opacity: 1 !important; }
+.mood-option:disabled:not(.mood-option-locked-selected), .mood-visibility-option:disabled, .mood-colleague-result:disabled { cursor: not-allowed; opacity: .58; }
+.mood-sharing-locked .mood-visibility-option { cursor: not-allowed; }
 .wellness-celebration-card { position: relative; isolation: isolate; overflow: hidden; min-height: 172px; margin: 0 0 16px; padding: 20px 22px; border: 1px solid rgba(13, 148, 136, .2); border-radius: 20px; background: linear-gradient(135deg, #f0fdfa 0%, #f5f3ff 52%, #fff1f2 100%); box-shadow: 0 12px 28px rgba(15, 23, 42, .08); }
 .wellness-celebration-card::before { position: absolute; z-index: -1; top: -65px; right: 20%; width: 140px; height: 140px; border-radius: 50%; background: rgba(186, 230, 253, .35); content: ''; }
 .wellness-paper-layer { position: absolute; z-index: -1; border-radius: 17px; box-shadow: 0 8px 18px rgba(15, 23, 42, .08); }
