@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
 export default function Announcements() {
-  const { announcements, setAnnouncements, role, setToast } = useApp();
+  const { announcements, announcementsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
   const [manage, setManage] = useState(false);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
@@ -19,9 +19,13 @@ export default function Announcements() {
     (category === 'All' || item.category === category)
   );
 
-  const toggleRead = (id) => {
-    setAnnouncements((items) => items.map((item) => item.id === id ? { ...item, read: !item.read } : item));
-    setToast('Announcement state updated.');
+  const toggleRead = async (item) => {
+    try {
+      await setAnnouncementRead(item.id, !item.read);
+      setToast('Announcement state updated.');
+    } catch (err) {
+      setToast(err.message || 'Unable to update the announcement.');
+    }
   };
 
   if (manage) return (
@@ -39,7 +43,7 @@ export default function Announcements() {
         eyebrow="THE LATEST FROM YOUR WORKPLACE"
         title="Announcements"
         description="A shared space for company milestones, executive updates, cultural news and essential workforce notices."
-        actions={role === 'HR Admin' ? <Button onClick={() => setManage(true)}>Manage posts</Button> : <Button variant="secondary" onClick={() => setManage(true)}>Demo manage view</Button>}
+        actions={isHrAdmin ? <Button onClick={() => setManage(true)}>Manage posts</Button> : null}
       />
 
       <div className="announcement-feature">
@@ -76,7 +80,21 @@ export default function Announcements() {
         </div>
 
         <div className="announcement-feed">
-          {filtered.map((item) => (
+          {announcementsState.loading && (
+            <div className="simple-empty">
+              <Search size={22}/>
+              <strong>Loading announcements…</strong>
+              <span>Fetching the latest updates from the server.</span>
+            </div>
+          )}
+          {announcementsState.error && (
+            <div className="simple-empty">
+              <Search size={22}/>
+              <strong>Unable to load announcements</strong>
+              <span>{announcementsState.error}</span>
+            </div>
+          )}
+          {!announcementsState.loading && !announcementsState.error && filtered.map((item) => (
             <article className={`feed-announcement ${!item.read ? 'feed-unread' : ''}`} key={item.id}>
               {item.image && (
                 <div className="feed-announcement-thumb">
@@ -98,14 +116,14 @@ export default function Announcements() {
                   <button className="text-link" onClick={() => setSelected(item)}>
                     Read full story <ArrowUpRight size={14}/>
                   </button>
-                  <button className="mark-read-button" onClick={() => toggleRead(item.id)}>
+                  <button className="mark-read-button" onClick={() => toggleRead(item)}>
                     {item.read ? 'Mark unread' : 'Mark as read'}
                   </button>
                 </div>
               </div>
             </article>
           ))}
-          {filtered.length === 0 && (
+          {!announcementsState.loading && !announcementsState.error && filtered.length === 0 && (
             <div className="simple-empty">
               <Search size={22}/>
               <strong>No updates found</strong>

@@ -1,38 +1,31 @@
-import { ArrowUpRight, Award, CalendarDays, Heart, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowUpRight, Award, Heart, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const items = [
-  {
-    title: 'My achievements',
-    value: '08',
-    caption: '2 unlocked this quarter',
-    icon: Award,
-    tone: 'purple',
-    to: '/recognition',
-    badge: '+2 this month',
-  },
-  {
-    title: 'Kudos received',
-    value: '12',
-    caption: 'Recent peer appreciation',
-    icon: Heart,
-    tone: 'rose',
-    to: '/recognition',
-    badge: '3 new',
-  },
-  {
-    title: 'PTO & leave balance',
-    value: '14.5',
-    suffix: 'days',
-    caption: 'Available annual vacation',
-    icon: CalendarDays,
-    tone: 'blue',
-    to: '/quick-links',
-    badge: 'Approved',
-  },
-];
+export default function SummaryCards({ summary, loading, error }) {
+  const achievements = summary?.achievements;
+  const kudosReceived = summary?.kudosReceived;
 
-export default function SummaryCards() {
+  const items = [
+    {
+      title: 'My achievements',
+      value: achievements?.value ?? null,
+      caption: error ? 'Unable to load summary' : (achievements?.caption || 'No achievement records'),
+      icon: Award,
+      tone: 'purple',
+      to: '/recognition',
+      badge: achievements?.badge || null,
+    },
+    {
+      title: 'Kudos received',
+      value: kudosReceived?.value ?? null,
+      caption: error ? 'Unable to load summary' : (kudosReceived?.caption || 'No kudos recorded yet'),
+      icon: Heart,
+      tone: 'rose',
+      to: '/recognition',
+      badge: kudosReceived?.badge || null,
+    },
+  ];
+
   return (
     <div className="summary-grid">
       {items.map((item) => (
@@ -41,12 +34,14 @@ export default function SummaryCards() {
             <span className={`summary-icon tone-${item.tone}`}>
               <item.icon size={20} />
             </span>
-            <span className={`summary-trend-pill tone-${item.tone}`}>
-              <TrendingUp size={12} /> {item.badge}
-            </span>
+            {item.badge && (
+              <span className={`summary-trend-pill tone-${item.tone}`}>
+                <TrendingUp size={12} /> {item.badge}
+              </span>
+            )}
           </div>
           <div className="summary-value">
-            {item.value}
+            {loading ? '…' : (item.value ?? '—')}
             {item.suffix && <small>{item.suffix}</small>}
           </div>
           <h3>{item.title}</h3>

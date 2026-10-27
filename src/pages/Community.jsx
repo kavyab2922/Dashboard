@@ -8,7 +8,6 @@ const groups = [
     id: 'g1',
     name: 'Creative Corner',
     type: 'Arts & Ideas',
-    members: 42,
     description: 'A place to trade visual inspiration, UI sketches, creative writing and weekend side projects.',
     icon: Palette,
     tone: 'purple',
@@ -19,7 +18,6 @@ const groups = [
     id: 'g2',
     name: 'Move & Recharge',
     type: 'Wellbeing',
-    members: 58,
     description: 'Daily movement breaks, 5k run clubs, walking meetings and low-pressure wellness accountability.',
     icon: Sprout,
     tone: 'mint',
@@ -30,7 +28,6 @@ const groups = [
     id: 'g3',
     name: 'Weekend Explorers',
     type: 'Outdoors',
-    members: 31,
     description: 'Swap hiking trails, camping spots, local weekend road trips and hidden countryside spots.',
     icon: Mountain,
     tone: 'gold',
@@ -41,7 +38,6 @@ const groups = [
     id: 'g4',
     name: 'Music Exchange',
     type: 'Music & Culture',
-    members: 26,
     description: 'Discover new indie tracks, trade focus playlists, discuss vinyl records and share concert plans.',
     icon: Music,
     tone: 'rose',
@@ -52,7 +48,6 @@ const groups = [
     id: 'g5',
     name: 'Puzzle People',
     type: 'Games & Puzzles',
-    members: 36,
     description: 'Quick daily word connections, crossword speedruns, chess tactics and logic riddles.',
     icon: Gamepad2,
     tone: 'blue',
@@ -63,7 +58,6 @@ const groups = [
     id: 'g6',
     name: 'Curiosity Club',
     type: 'Books & Science',
-    members: 47,
     description: 'Share non-fiction book summaries, tech articles, podcast gems and cross-disciplinary learnings.',
     icon: Compass,
     tone: 'teal',
@@ -141,9 +135,6 @@ export default function Community() {
               <div className="community-card-body">
                 <div className="community-group-heading">
                   <h3>{group.name}</h3>
-                  <span className="community-member-count">
-                    <Users size={13}/> {group.members + (joined ? 1 : 0)}
-                  </span>
                 </div>
                 <p>{group.description}</p>
                 <div className="community-next-activity">
@@ -154,8 +145,7 @@ export default function Community() {
                   </div>
                 </div>
                 <div className="community-card-footer">
-                  <span className="community-demo-tag">Community Club</span>
-                  <Button
+                  <span className="community-demo-tag">Community Club</span>                  <Button
                     variant={joined ? 'secondary' : 'primary'}
                     size="sm"
                     onClick={() => toggleJoin(group)}

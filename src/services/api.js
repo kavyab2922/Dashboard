@@ -1,14 +1,121 @@
 /**
- * Future API boundary. Components should call this adapter rather than fetch from
- * individual UI components. The current prototype returns local demo data only.
- * Replace these methods with fetch/HTTP calls when the Express API is available.
+ * API boundary for the HROrbit Express backend. All business data is fetched
+ * from the backend (PostgreSQL via the API); no local demo data lives here.
  */
-export const demoApi = {
-  async list(resource, fallback = []) { return Promise.resolve(fallback); },
-  async create(resource, item) { return Promise.resolve({ ...item, id: item.id || `${resource}-${Date.now()}` }); },
-  async update(resource, id, changes) { return Promise.resolve({ id, ...changes }); },
-  async remove(resource, id) { return Promise.resolve({ id, removed: true }); },
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
+export function getToken() {
+  return localStorage.getItem('hrobit-auth-token');
+}
+
+/**
+ * Turns backend-relative media paths (e.g. "/uploads/cover-1.png") into absolute
+ * URLs so images load correctly from the Vite dev origin / any deployment host.
+ */
+export function resolveAssetUrl(url) {
+  if (!url || typeof url !== 'string') return null;
+  if (/^(https?:)?\/\//i.test(url) || url.startsWith('data:') || url.startsWith('blob:')) return url;
+  if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+  return url;
+}
+
+/** Uploads an image file via the existing /api/upload endpoint (multipart). */
+async function uploadFile(file) {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_BASE_URL}/api/upload`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.message || 'Upload failed');
+    error.status = response.status;
+    throw error;
+  }
+  return { ...payload.data, url: resolveAssetUrl(payload.data?.url) };
+}
+
+async function request(path, options = {}) {
+  const token = getToken();
+  const response = await fetch(`${API_BASE_URL}/api${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(payload.message || 'Request failed');
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+
+const get = (path) => request(path);
+const post = (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) });
+const put = (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) });
+const del = (path) => request(path, { method: 'DELETE' });
+
+export const authApi = {
+  login(credentials) { return request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }); },
+  register(details) { return request('/auth/register', { method: 'POST', body: JSON.stringify(details) }); },
+  me() { return get('/auth/me'); },
+  updateProfile(changes) { return put('/profile', changes); },
+  uploadFile,
 };
 
-// Suggested future integration: use import.meta.env.VITE_API_BASE_URL and a
-// shared fetch wrapper here. Do not fake successful production API requests.
+export const dataApi = {
+  announcements: {
+    list: () => get('/announcements'),
+    create: (body) => post('/announcements', body),
+    update: (id, body) => put(`/announcements/${id}`, body),
+    remove: (id) => del(`/announcements/${id}`),
+  },
+  events: {
+    list: () => get('/events'),
+    create: (body) => post('/events', body),
+    update: (id, body) => put(`/events/${id}`, body),
+    remove: (id) => del(`/events/${id}`),
+  },
+  quickLinks: {
+    list: () => get('/quick-links'),
+    create: (body) => post('/quick-links', body),
+    update: (id, body) => put(`/quick-links/${id}`, body),
+    remove: (id) => del(`/quick-links/${id}`),
+  },
+  contacts: {
+    list: () => get('/hr-contacts'),
+  },
+  kudos: {
+    list: () => get('/kudos'),
+    create: (body) => post('/kudos', body),
+  },
+  notifications: {
+    list: () => get('/notifications'),
+    markRead: (id) => put(`/notifications/${id}/read`),
+    markAllRead: () => put('/notifications/read-all'),
+  },
+  courses: { list: () => get('/courses') },
+  faqs: { list: () => get('/faqs') },
+  games: { list: () => get('/games') },
+  employees: {
+    list: () => get('/employees'),
+    search: (query, limit = 8) => get(`/employees?q=${encodeURIComponent(String(query || '').trim())}&limit=${limit}`),
+  },
+  celebrations: { list: () => get('/celebrations') },
+  dashboard: { summary: () => get('/dashboard/summary') },
+  moods: {
+    state: () => get('/moods/state'),
+    save: (body) => put('/moods/today', body),
+    team: () => get('/moods/team'),
+    react: (id, reaction) => post(`/moods/${id}/reactions`, { reaction }),
+    sendMessage: (id, body) => post(`/moods/${id}/messages`, body),
+    respondToChat: (id, status) => put(`/mood-messages/${id}/chat`, { status }),
+  },
+};

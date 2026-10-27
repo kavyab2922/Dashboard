@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Cake, PartyPopper, Sparkles, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { currentEmployee } from '../../data/employees';
+import { useApp } from '../../context/AppContext';
 import { isSameMonthDay } from '../../utils/format';
 
 export default function BirthdayModal() {
+  const { user } = useApp();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -13,12 +14,12 @@ export default function BirthdayModal() {
 
     const today = new Date();
     const dismissedKey = `hrobit-birthday-dismissed-${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-    if (isSameMonthDay(currentEmployee.birthday, today) && !sessionStorage.getItem(dismissedKey)) {
+    if (user?.dob && isSameMonthDay(user.dob, today) && !sessionStorage.getItem(dismissedKey)) {
       setOpen(true);
     }
 
     return () => window.removeEventListener('hrobit-open-birthday', handleOpen);
-  }, []);
+  }, [user?.dob]);
 
   const dismiss = () => {
     const today = new Date();
@@ -30,6 +31,8 @@ export default function BirthdayModal() {
   };
 
   if (!open) return null;
+
+  const firstName = (user?.name || 'Employee').split(' ')[0];
 
   return (
     <div className="birthday-backdrop">
@@ -58,7 +61,7 @@ export default function BirthdayModal() {
           </div>
         </div>
 
-        <h2>Happy Birthday, {currentEmployee.name.split(' ')[0]}! 🎉</h2>
+        <h2>Happy Birthday, {firstName}! 🎉</h2>
         <p>
           Wishing you an incredible year ahead packed with bold ideas, meaningful accomplishments, and good vibes from all of us at HROrbit.
         </p>

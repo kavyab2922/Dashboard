@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
-import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import useClickOutside from '../../hooks/useClickOutside';
 import { Avatar } from '../common/UI';
+import RoleSwitch from '../common/RoleSwitch';
 
 const palettes = [
   { id: 'sapphire', label: 'Sapphire Blue', color: '#2563eb', desc: 'Enterprise Tech' },
@@ -13,10 +15,14 @@ const palettes = [
 
 export default function Header({ pageTitle, onMenuClick }) {
   const {
-    theme, setTheme, colorTheme, setColorTheme, role, setRole,
+    theme, setTheme, colorTheme, setColorTheme, role,
+    user,
     announcements, events, quickLinks, contacts, courses,
-    notifications, markRead, markAllRead, setToast
+    notifications, markNotificationRead, markAllNotificationsRead, setToast
   } = useApp();
+
+  const displayName = user?.name || 'Employee';
+  const displayInitials = user?.initials || displayName.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -24,6 +30,13 @@ export default function Header({ pageTitle, onMenuClick }) {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
+
+  // One ref per navbar dropdown (trigger + panel) for outside-click closing.
+  const searchRef = useRef(null);
+  const paletteRef = useRef(null);
+  const notifRef = useRef(null);
+  const profileRef = useRef(null);
+  const dropdownRefs = useMemo(() => [searchRef, paletteRef, notifRef, profileRef], []);
 
   const unread = notifications.filter((item) => !item.read).length;
 
@@ -46,27 +59,28 @@ export default function Header({ pageTitle, onMenuClick }) {
     setSearchOpen(false);
   };
 
-  const closeAll = () => {
+  const closeAll = useCallback(() => {
     setNotifOpen(false);
     setProfileOpen(false);
     setPaletteOpen(false);
     setSearchOpen(false);
-  };
+  }, []);
+
+  // Close the open dropdown when clicking anywhere outside it or its trigger.
+  useClickOutside(dropdownRefs, searchOpen || paletteOpen || notifOpen || profileOpen, closeAll);
 
   return (
     <header className="topbar">
-      <button className="mobile-menu icon-button" aria-label="Open navigation" onClick={onMenuClick}>
-        <Menu size={20} />
-      </button>
+      
 
-      <div className="topbar-title">
-        <span className="topbar-kicker">YOUR WORKPLACE, CONNECTED</span>
-        <h1>{pageTitle || 'Dashboard'}</h1>
-      </div>
+      <Link to="/" className="topbar-brand">
+        <span className="topbar-brand-mark"><Activity size={21} strokeWidth={2.6} /></span>
+        <span className="topbar-brand-name">HROrbit</span>
+      </Link>
 
       <div className="topbar-tools">
         {/* Global Search */}
-        <div className={`global-search-wrap ${searchOpen ? 'searching' : ''}`}>
+        <div ref={searchRef} className={`global-search-wrap ${searchOpen ? 'searching' : ''}`}>
           <Search size={17} />
           <input
             aria-label="Search HROrbit"
@@ -110,7 +124,7 @@ export default function Header({ pageTitle, onMenuClick }) {
         </div>
 
         {/* Color Palette Switcher */}
-        <div className="topbar-popover-wrap">
+        <div ref={paletteRef} className="topbar-popover-wrap">
           <button
             className={`icon-button palette-button ${paletteOpen ? 'active' : ''}`}
             aria-label="Choose color theme"
@@ -152,7 +166,7 @@ export default function Header({ pageTitle, onMenuClick }) {
         </div>
 
         {/* Notifications */}
-        <div className="topbar-popover-wrap">
+        <div ref={notifRef} className="topbar-popover-wrap">
           <button
             className={`icon-button notification-button ${notifOpen ? 'active' : ''}`}
             aria-label={`Notifications, ${unread} unread`}
@@ -168,7 +182,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                   <strong>Notifications</strong>
                   <small>{unread} unread updates</small>
                 </div>
-                <button className="text-link" onClick={markAllRead}>
+                <button className="text-link" onClick={() => { markAllNotificationsRead().catch((err) => setToast(err.message || 'Unable to update notifications.')); }}>
                   <CheckCheck size={14} /> Mark all read
                 </button>
               </div>
@@ -178,7 +192,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                     key={item.id}
                     className={`notification-row ${!item.read ? 'unread' : ''}`}
                     onClick={() => {
-                      markRead(item.id);
+                      markNotificationRead(item.id).catch((err) => setToast(err.message || 'Unable to update notification.'));
                       setNotifOpen(false);
                       navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
                     }}
@@ -215,46 +229,31 @@ export default function Header({ pageTitle, onMenuClick }) {
         </button>
 
         {/* Profile Trigger */}
-        <div className="topbar-popover-wrap">
+        <div ref={profileRef} className="topbar-popover-wrap">
           <button
             className="profile-trigger"
             onClick={() => { closeAll(); setProfileOpen(!profileOpen); }}
           >
-            <Avatar name="B Kavya" initials="BK" color="blue" />
+            <Avatar name={displayName} initials={displayInitials} color="blue" src={user?.avatar} />
             <span className="profile-trigger-copy">
-              <strong>B Kavya</strong>
-              <small>{role} · Demo</small>
+              <strong>{displayName}</strong>
+              <small>{role} </small>
             </span>
             <ChevronDown size={15} />
           </button>
           {profileOpen && (
             <div className="popover-panel profile-menu">
               <div className="profile-menu-top">
-                <Avatar name="B Kavya" initials="BK" color="blue" size="lg"/>
-                <div>
-                  <strong>B Kavya</strong>
-                  <small>Product Design · Demo profile</small>
+                <Avatar name={displayName} initials={displayInitials} color="blue" size="lg" src={user?.avatar}/>
+                <div className="profile-menu-info">
+                  <strong>{displayName}</strong>
+                  <small>{user?.role || user?.team || 'Employee'}</small>
                 </div>
               </div>
               <button onClick={() => { navigate('/profile'); setProfileOpen(false); }}>
                 My profile <ArrowUpRight size={14} />
               </button>
-              <div className="role-switch">
-                <label htmlFor="demo-role">Demo view</label>
-                <select
-                  id="demo-role"
-                  value={role}
-                  onChange={(event) => {
-                    setRole(event.target.value);
-                    setProfileOpen(false);
-                    setToast(`Switched to ${event.target.value} demo view.`);
-                  }}
-                >
-                  <option>Employee</option>
-                  <option>HR Admin</option>
-                </select>
-              </div>
-              <small className="demo-warning">Demo roles are not security controls.</small>
+              <RoleSwitch onSwitched={() => setProfileOpen(false)} />
             </div>
           )}
         </div>

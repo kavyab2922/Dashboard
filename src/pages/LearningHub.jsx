@@ -7,7 +7,7 @@ const categoryOptions = ['All', ...new Set(['Java & OOP','DSA','Web Development'
 const providerOptions = ['All', ...new Set(['GeeksforGeeks','freeCodeCamp','React.dev','Microsoft Learn','NPTEL','Coursera','Docker'])];
 
 export default function LearningHub() {
-  const { courses, savedCourses, toggleSavedCourse, setToast } = useApp();
+  const { courses, coursesState, savedCourses, toggleSavedCourse, setToast } = useApp();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [provider, setProvider] = useState('All');
@@ -43,6 +43,13 @@ export default function LearningHub() {
         }
       />
 
+      {coursesState.error && (
+        <Panel><p className="muted">Unable to load learning resources: {coursesState.error}</p></Panel>
+      )}
+      {coursesState.loading && (
+        <Panel><p className="muted">Loading learning resources…</p></Panel>
+      )}
+
       <div className="learning-hero">
         <div className="learning-hero-copy">
           <Tag tone="blue">YOUR PERSONAL GROWTH SPACE</Tag>
@@ -63,7 +70,7 @@ export default function LearningHub() {
       <div className="learning-stats-row">
         <div>
           <span className="learning-stat-icon"><BookOpen size={18}/></span>
-          <span><strong>{courses.length}</strong><small>resources to explore</small></span>
+          <span><strong>{coursesState.loading ? '…' : courses.length}</strong><small>resources to explore</small></span>
         </div>
         <div>
           <span className="learning-stat-icon purple"><Bookmark size={18}/></span>
@@ -71,7 +78,7 @@ export default function LearningHub() {
         </div>
         <div>
           <span className="learning-stat-icon blue"><GraduationCap size={18}/></span>
-          <span><strong>{new Set(courses.map((course) => course.category)).size}</strong><small>learning categories</small></span>
+          <span><strong>{coursesState.loading ? '…' : new Set(courses.map((course) => course.category)).size}</strong><small>learning categories</small></span>
         </div>
       </div>
 
@@ -162,9 +169,8 @@ export default function LearningHub() {
               </button>
             </div>
           </Panel>
-        ))}
-        {filtered.length === 0 && (
-          <div className="learning-empty">
+        ))}          {!coursesState.loading && !coursesState.error && filtered.length === 0 && (
+            <div className="learning-empty">
             <EmptyState
               icon={Search}
               title="No resources match your filters"
