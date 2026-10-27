@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, AtSign, Building2, ChevronDown, Mail, MapPin, Phone, Search, Users } from 'lucide-react';
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
+import useClickOutside from '../hooks/useClickOutside';
 import { Avatar, Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
 const buildTeamsChatUrl = (email) => (
   email
-    ? `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}`
+    ? `msteams://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(email)}`
     : null
 );
 
@@ -15,9 +16,29 @@ export default function HRContacts() {
   const [search, setSearch] = useState('');
   const [team, setTeam] = useState('All');
   const [departmentOpen, setDepartmentOpen] = useState(false);
+  const [menuPlacement, setMenuPlacement] = useState('down');
   const [manage, setManage] = useState(false);
-
+  const departmentRef = useRef(null);
   const teams = ['All', ...new Set(contacts.map((item) => item.team))];
+
+  useClickOutside(departmentRef, departmentOpen, () => setDepartmentOpen(false));
+
+  useEffect(() => {
+    if (!departmentOpen || !departmentRef.current) return undefined;
+    const updatePlacement = () => {
+      const bounds = departmentRef.current.getBoundingClientRect();
+      const menuHeight = Math.min(260, Math.max(120, teams.length * 42 + 12));
+      setMenuPlacement(bounds.bottom + menuHeight > window.innerHeight - 12 ? 'up' : 'down');
+    };
+    updatePlacement();
+    window.addEventListener('resize', updatePlacement);
+    window.addEventListener('scroll', updatePlacement, true);
+    return () => {
+      window.removeEventListener('resize', updatePlacement);
+      window.removeEventListener('scroll', updatePlacement, true);
+    };
+  }, [departmentOpen, teams.length]);
+
   const filtered = contacts.filter((item) =>
     `${item.name} ${item.team} ${item.focus} ${item.location}`.toLowerCase().includes(search.toLowerCase()) &&
     (team === 'All' || item.team === team)
@@ -25,10 +46,13 @@ export default function HRContacts() {
 
   if (manage) return (
     <>
-      <EditableCollectionPage type="contacts" embedded/>
-      <div className="back-to-feed">
-        <Button variant="secondary" onClick={() => setManage(false)}>← Back to Quick Connect</Button>
-      </div>
+      <EditableCollectionPage
+        type="contacts"
+        embedded
+        backAction={(
+          <Button variant="secondary" onClick={() => setManage(false)}>← Back to Quick Connect</Button>
+        )}
+      />
     </>
   );
 
@@ -65,7 +89,7 @@ export default function HRContacts() {
         </div>
       </div>
 
-      <Panel className="contacts-filter-panel">
+      <Panel className={`contacts-filter-panel ${departmentOpen ? 'is-department-open' : ''}`}>
         <div className="contacts-filter-heading">
           <div>
             <span className="contacts-filter-kicker">Find your HR partner</span>
@@ -81,7 +105,7 @@ export default function HRContacts() {
           </label>
           <div className="contacts-department-filter">
             <span className="contacts-department-label"><Building2 size={15}/> Department</span>
-            <div className="contacts-select-wrap">
+            <div ref={departmentRef} className={`contacts-select-wrap is-menu-${menuPlacement}`}>
               <button
                 type="button"
                 className={`contacts-select-trigger ${departmentOpen ? 'is-open' : ''}`}
@@ -154,8 +178,6 @@ export default function HRContacts() {
                     className="btn btn-ghost btn-sm"
                     href={buildTeamsChatUrl(contact.email)}
                     aria-label={`Open Teams chat with ${contact.name}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
                   >
                     Schedule chat <ArrowUpRight size={14}/>
                   </a>

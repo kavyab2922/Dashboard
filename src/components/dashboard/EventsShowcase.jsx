@@ -6,7 +6,9 @@ import { formatDate } from '../../utils/format';
 
 export default function EventsShowcase() {
   const { events, eventsState } = useApp();
-  const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const sorted = events.filter((event) => event.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date));
   const [active, setActive] = useState(0);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { CalendarDays, Clock3, ExternalLink, MapPin, Rows3, CalendarRange, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, Rows3 } from 'lucide-react';
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
 import { Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
@@ -9,14 +9,36 @@ export default function Events() {
   const { events, eventsState, isHrAdmin, setToast } = useApp();
   const [view, setView] = useState('list');
   const [manage, setManage] = useState(false);
-  const sorted = [...events].sort((a,b) => a.date.localeCompare(b.date));
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const upcomingEvents = useMemo(
+    () => events.filter((event) => event.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date)),
+    [events, todayKey]
+  );
+  const monthLabel = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(calendarMonth);
+  const calendarDays = useMemo(() => {
+    const firstDay = (calendarMonth.getDay() + 6) % 7;
+    return Array.from({ length: 42 }, (_, index) => {
+      const day = index - firstDay + 1;
+      return new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day);
+    }).map((date) => ({
+      date,
+      inMonth: date.getMonth() === calendarMonth.getMonth(),
+      event: upcomingEvents.find((item) => item.date === date.toISOString().slice(0, 10)),
+    }));
+  }, [calendarMonth, upcomingEvents]);
 
   if (manage) return (
     <>
-      <EditableCollectionPage type="events" embedded/>
-      <div className="back-to-feed">
-        <Button variant="secondary" onClick={() => setManage(false)}>← Back to events</Button>
-      </div>
+      <EditableCollectionPage
+        type="events"
+        embedded
+        backAction={<Button variant="secondary" onClick={() => setManage(false)}>← Back to events</Button>}
+      />
     </>
   );
 
@@ -46,7 +68,7 @@ export default function Events() {
           </p>
         </div>
         <div className="events-hero-number">
-          <strong>{events.length.toString().padStart(2,'0')}</strong>
+          <strong>{upcomingEvents.length.toString().padStart(2,'0')}</strong>
           <span>UPCOMING EVENTS</span>
         </div>
       </div>
@@ -57,11 +79,11 @@ export default function Events() {
           <p>Browse upcoming schedules and details at a glance.</p>
         </div>
         <div className="view-switch">
-          <button className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>
-            <Rows3 size={15}/> List view
+          <button type="button" aria-pressed={view === 'list'} className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>
+            <Rows3 size={16}/> <span>List view</span>
           </button>
-          <button className={view === 'calendar' ? 'active' : ''} onClick={() => setView('calendar')}>
-            <CalendarDays size={15}/> Month view
+          <button type="button" aria-pressed={view === 'calendar'} className={view === 'calendar' ? 'active' : ''} onClick={() => setView('calendar')}>
+            <CalendarDays size={16}/> <span>Month view</span>
           </button>
         </div>
       </div>
@@ -72,7 +94,7 @@ export default function Events() {
         <Panel><p className="muted">Unable to load events: {eventsState.error}</p></Panel>
       ) : view === 'list' ? (
         <div className="events-list">
-          {sorted.map((event) => (
+          {upcomingEvents.map((event) => (
             <Panel className="event-card" key={event.id}>
               {event.image && (
                 <div className="event-card-thumb">
@@ -106,7 +128,7 @@ export default function Events() {
               </div>
             </Panel>
           ))}
-          {sorted.length === 0 && (
+          {upcomingEvents.length === 0 && (
             <Panel><p className="muted">No events currently scheduled.</p></Panel>
           )}
         </div>
@@ -115,29 +137,31 @@ export default function Events() {
           <div className="calendar-month-head">
             <div>
               <span>YOUR AGENDA</span>
-              <h2>{new Intl.DateTimeFormat('en',{month:'long',year:'numeric'}).format(new Date())}</h2>
+              <h2>{monthLabel}</h2>
+              <p>{upcomingEvents.length} upcoming {upcomingEvents.length === 1 ? 'event' : 'events'} scheduled</p>
             </div>
-            <span className="calendar-demo-label"><Sparkles size={13}/> Live schedule</span>
+            <div className="calendar-month-actions">
+              <button type="button" className="calendar-nav-button" aria-label="Previous month" onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}>
+                <ChevronLeft size={17}/>
+              </button>
+              <button type="button" className="calendar-today-button" onClick={() => setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1))}>Today</button>
+              <button type="button" className="calendar-nav-button" aria-label="Next month" onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}>
+                <ChevronRight size={17}/>
+              </button>
+            </div>
           </div>
           <div className="calendar-grid">
             {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day) => (
               <div className="calendar-weekday" key={day}>{day}</div>
             ))}
-            {Array.from({length:35},(_,index) => {
-              const firstDay = new Date(new Date().getFullYear(),new Date().getMonth(),1).getDay();
-              const shiftedFirst = (firstDay + 6) % 7;
-              const day = index - shiftedFirst + 1;
-              const daysInMonth = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
-              const event = sorted.find((item) => {
-                const d = new Date(`${item.date}T12:00:00`);
-                return d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear() && d.getDate() === day;
-              });
-              const valid = day > 0 && day <= daysInMonth;
+            {calendarDays.map(({ date, inMonth, event }) => {
+              const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+              const isToday = dateKey === todayKey;
               return (
-                <div className={`calendar-day ${!valid ? 'outside-month' : ''} ${valid && day === new Date().getDate() ? 'today' : ''}`} key={index}>
-                  <span>{valid ? day : ''}</span>
+                <div className={`calendar-day ${!inMonth ? 'outside-month' : ''} ${isToday ? 'today' : ''}`} key={dateKey}>
+                  <span className="calendar-day-number">{date.getDate()}</span>
                   {event && (
-                    <button title={event.title} className="calendar-event-dot" onClick={() => openRsvp(event)}>
+                    <button type="button" title={event.title} className="calendar-event-dot" onClick={() => openRsvp(event)}>
                       {event.title}
                     </button>
                   )}
