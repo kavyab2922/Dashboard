@@ -6,6 +6,7 @@ import WelcomeBanner from '../components/dashboard/WelcomeBanner';
 import EventsShowcase from '../components/dashboard/EventsShowcase';
 import SummaryCards from '../components/dashboard/SummaryCards';
 import MoodSection from '../components/dashboard/MoodSection';
+import TeamMoodSection from '../components/dashboard/TeamMoodSection';
 import { DashboardMainGrid } from '../components/dashboard/DashboardWidgets';
 import GiveKudosModal from '../components/kudos/GiveKudosModal';
 import { useApp } from '../context/AppContext';
@@ -44,6 +45,7 @@ export default function Dashboard() {
         <SummaryCards summary={summary} loading={summaryLoading} error={summaryError} />
       </div>
       <MoodSection />
+      <TeamMoodSection />
       <DashboardMainGrid summary={summary} summaryLoading={summaryLoading} summaryError={summaryError} />
       <GiveKudosModal open={kudosOpen} onClose={() => setKudosOpen(false)} />
     </>

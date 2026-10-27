@@ -110,4 +110,12 @@ export const dataApi = {
   },
   celebrations: { list: () => get('/celebrations') },
   dashboard: { summary: () => get('/dashboard/summary') },
+  moods: {
+    state: () => get('/moods/state'),
+    save: (body) => put('/moods/today', body),
+    team: () => get('/moods/team'),
+    react: (id, reaction) => post(`/moods/${id}/reactions`, { reaction }),
+    sendMessage: (id, body) => post(`/moods/${id}/messages`, body),
+    respondToChat: (id, status) => put(`/mood-messages/${id}/chat`, { status }),
+  },
 };
