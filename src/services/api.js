@@ -52,6 +52,7 @@ async function request(path, options = {}) {
   if (!response.ok) {
     const error = new Error(payload.message || 'Request failed');
     error.status = response.status;
+    error.data = payload.data;
     throw error;
   }
   return payload;
