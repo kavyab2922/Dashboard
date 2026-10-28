@@ -27,6 +27,7 @@ function Placeholder({ label }) {
  */
 export function ChampionsPodium({ period = 'all', compact = false }) {
   const [state, setState] = useState({ loading: true, error: '', champions: [], me: null });
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +44,7 @@ export function ChampionsPodium({ period = 'all', compact = false }) {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, retryToken]);
 
   if (state.loading) {
     return (
@@ -60,7 +61,7 @@ export function ChampionsPodium({ period = 'all', compact = false }) {
   }
 
   if (state.error) {
-    return <p className="muted">Unable to load champions: {state.error}</p>;
+    return <div className="leaderboard-error"><p className="muted">Unable to load champions: {state.error}</p><button type="button" className="btn btn-secondary" onClick={() => setRetryToken((value) => value + 1)}>Retry</button></div>;
   }
 
   if (!state.champions.length) {
@@ -97,6 +98,7 @@ export function ChampionsPodium({ period = 'all', compact = false }) {
 /** Full ranking table with period filters and the signed-in row highlighted. */
 export function LeaderboardTable({ period, onPeriodChange, limit = 25 }) {
   const [state, setState] = useState({ loading: true, error: '', rows: [], me: null });
+  const [retryToken, setRetryToken] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +115,7 @@ export function LeaderboardTable({ period, onPeriodChange, limit = 25 }) {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, retryToken]);
 
   const rows = state.rows.slice(0, limit);
 
@@ -139,7 +141,7 @@ export function LeaderboardTable({ period, onPeriodChange, limit = 25 }) {
           {[0, 1, 2, 3].map((index) => <div className="skeleton-bar" key={index} />)}
         </div>
       ) : state.error ? (
-        <p className="muted">Unable to load the leaderboard: {state.error}</p>
+        <div className="leaderboard-error"><p className="muted">Unable to load the leaderboard: {state.error}</p><button type="button" className="btn btn-secondary" onClick={() => setRetryToken((value) => value + 1)}>Retry</button></div>
       ) : rows.length === 0 ? (
         <p className="muted">No completions recorded for this period yet.</p>
       ) : (

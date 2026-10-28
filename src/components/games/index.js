@@ -1,22 +1,15 @@
 import QueensGame from './QueensGame';
-import PinpointGame from './PinpointGame';
-import CrossclimbGame from './CrossclimbGame';
-import ZipGame from './ZipGame';
-import TangoGame from './TangoGame';
 import MiniSudokuGame from './MiniSudokuGame';
-import WendGame from './WendGame';
-import PatchesGame from './PatchesGame';
+import QuizGame from './QuizGame';
+import WordQuestGame from './WordQuestGame';
+import TriviaGame from './TriviaGame';
 
-/** Maps the hcm.games ids to their board components. */
+/** Maps the four active Daily Games IDs to their board components. */
 export const GAME_COMPONENTS = {
-  queens: QueensGame,
-  pinpoint: PinpointGame,
-  crossclimb: CrossclimbGame,
-  zip: ZipGame,
-  tango: TangoGame,
-  'mini-sudoku': MiniSudokuGame,
-  wend: WendGame,
-  patches: PatchesGame,
+  sudoku: MiniSudokuGame,
+  quiz: QuizGame,
+  word: WordQuestGame,
+  trivia: TriviaGame,
 };
 
 export default GAME_COMPONENTS;

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, CheckCircle2, Flame, Hourglass, Lightbulb, PartyPopper, Trophy, X,
+  ArrowLeft, Award, CheckCircle2, Flame, Hourglass, Lightbulb, PartyPopper, Trophy, X,
 } from 'lucide-react';
 import { dataApi } from '../services/api';
 import { useApp } from '../context/AppContext';
@@ -10,6 +10,11 @@ import {
   GameIcon, RulesPanel, StatChip, formatElapsed, useTimer, prefersReducedMotion,
 } from '../components/games/common';
 import GAME_COMPONENTS from '../components/games';
+import GameIconRain from '../components/games/GameIconRain';
+import VictoryBlast from '../components/games/VictoryBlast';
+
+const DAILY_GAME_ORDER = ['sudoku', 'quiz', 'word', 'trivia'];
+const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert', 'master'];
 
 function GameSkeleton() {
   return (
@@ -34,12 +39,19 @@ export default function GamePlay() {
   const [session, setSession] = useState(null);
   const [initialStats, setInitialStats] = useState(null);
   const [completion, setCompletion] = useState(null);
+  const [duplicateCompletion, setDuplicateCompletion] = useState(false);
+  const [showVictoryBlast, setShowVictoryBlast] = useState(false);
   const [celebrations, setCelebrations] = useState([]);
   const [hint, setHint] = useState('');
   const [hintsUsed, setHintsUsed] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [completionSubmitting, setCompletionSubmitting] = useState(false);
+  const [nextLevelLoading, setNextLevelLoading] = useState(false);
+  const [nextLevelError, setNextLevelError] = useState('');
   const [confirmExit, setConfirmExit] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [difficulty, setDifficulty] = useState(() => new URLSearchParams(window.location.search).get('difficulty') || 'easy');
+  const [level, setLevel] = useState(() => Math.max(1, Number(new URLSearchParams(window.location.search).get('level')) || 1));
 
   const elapsed = useTimer(Boolean(puzzle) && !completion);
   const Board = GAME_COMPONENTS[gameId];
@@ -49,12 +61,14 @@ export default function GamePlay() {
     setLoadError('');
     try {
       const [puzzlePayload, statsPayload] = await Promise.all([
-        dataApi.dailyGames.puzzle(gameId),
+        dataApi.dailyGames.puzzle(gameId, { difficulty, level }),
         dataApi.dailyGames.stats().catch(() => null),
       ]);
       const data = puzzlePayload.data;
       setGame(data.game);
       setPuzzle(data.puzzle);
+      setDifficulty(data.puzzle.difficulty || difficulty);
+      setLevel(Number(data.puzzle.level) || level);
       setSession(data.session);
       setHintsUsed(Number(data.session?.hintsUsed) || 0);
       setCompletion(data.completion || null);
@@ -67,7 +81,7 @@ export default function GamePlay() {
     } finally {
       setLoading(false);
     }
-  }, [gameId]);
+  }, [difficulty, gameId, level]);
 
   useEffect(() => {
     load();
@@ -88,7 +102,7 @@ export default function GamePlay() {
     if (busy) return null;
     setBusy(true);
     try {
-      const payload = await dataApi.dailyGames.hint(gameId);
+      const payload = await dataApi.dailyGames.hint(gameId, { puzzleId: puzzle?.id, difficulty, level });
       setHint(payload.data.hint || '');
       setHintsUsed(payload.data.hintsUsed || 0);
       if (session) setSession({ ...session, hintsUsed: payload.data.hintsUsed });
@@ -99,12 +113,12 @@ export default function GamePlay() {
     } finally {
       setBusy(false);
     }
-  }, [busy, gameId, session]);
+  }, [busy, difficulty, gameId, level, puzzle?.id, session]);
 
   const handleCheck = useCallback(async (submission) => {
     setBusy(true);
     try {
-      const payload = await dataApi.dailyGames.check(gameId, submission);
+      const payload = await dataApi.dailyGames.check(gameId, submission, { puzzleId: puzzle?.id, difficulty, level });
       if (payload.data.hintsUsed !== undefined) setHintsUsed(payload.data.hintsUsed);
       if (payload.data.clues) setPuzzle((current) => (current ? { ...current, revealedClues: payload.data.clues } : current));
       return payload.data;
@@ -113,15 +127,27 @@ export default function GamePlay() {
     } finally {
       setBusy(false);
     }
-  }, [gameId]);
+  }, [difficulty, gameId, level, puzzle?.id]);
 
   const handleComplete = useCallback(async (submission) => {
+    if (completionSubmitting || completion || busy) return { ok: false, message: 'Completion is already being processed.' };
+    setCompletionSubmitting(true);
     setBusy(true);
     try {
-      const payload = await dataApi.dailyGames.complete(gameId, submission);
+      const payload = await dataApi.dailyGames.complete(gameId, submission, { puzzleId: puzzle?.id, difficulty, level });
       const data = payload.data;
+      if (!data?.valid) return { ok: false, message: data?.message || 'That solution is not correct yet.' };
+      const isDuplicate = Boolean(data.duplicate);
       setCompletion(data.completion);
-      setInitialStats(data.stats);
+      setDuplicateCompletion(isDuplicate);
+      setInitialStats(data.stats || data.progress || initialStats);
+      const rewardKey = `hrobit-victory:${gameId}:${data.completion?.created_at || data.completion?.completion_ms || 'completed'}`;
+      let alreadyCelebrated = false;
+      try { alreadyCelebrated = sessionStorage.getItem(rewardKey) === 'shown'; } catch { /* storage may be unavailable */ }
+      if (!isDuplicate && !alreadyCelebrated) {
+        try { sessionStorage.setItem(rewardKey, 'shown'); } catch { /* animation still works without storage */ }
+      }
+      setShowVictoryBlast(true);
       setCelebrations(data.celebrations || []);
       if (data.stats?.status) setGame((current) => (current ? { ...current, status: 'completed' } : current));
       return { ok: true, data };
@@ -129,17 +155,72 @@ export default function GamePlay() {
       return { ok: false, message: err.message || 'That solution is not correct yet.' };
     } finally {
       setBusy(false);
+      setCompletionSubmitting(false);
     }
-  }, [gameId]);
+  }, [busy, completion, completionSubmitting, difficulty, gameId, initialStats, level, puzzle?.id]);
+
+  const closeVictoryBlast = useCallback(() => setShowVictoryBlast(false), []);
 
   const dismissCelebration = useCallback((eventKey) => {
     dataApi.dailyGames.acknowledge(eventKey).catch(() => {});
     setCelebrations((current) => current.filter((item) => item.eventKey !== eventKey));
   }, []);
 
-  const exit = useCallback(() => {
-    navigate('/games');
+  const exit = useCallback((event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    setConfirmExit(false);
+    setShowVictoryBlast(false);
+    setCelebrations([]);
+    setCompletion(null);
+    setPuzzle(null);
+    setSession(null);
+    setHint('');
+    setHintsUsed(0);
+    setBusy(false);
+    setCompletionSubmitting(false);
+    setNextLevelLoading(false);
+    setNextLevelError('');
+    navigate('/games', { replace: true });
   }, [navigate]);
+
+  const selectDifficulty = (nextDifficulty) => {
+    setCompletion(null);
+    setHint('');
+    setHintsUsed(0);
+    setLevel(1);
+    setDifficulty(nextDifficulty);
+  };
+
+  const nextLevel = async () => {
+    if (busy || completionSubmitting || nextLevelLoading) return;
+    const targetLevel = level + 1;
+    setNextLevelLoading(true);
+    setNextLevelError('');
+    try {
+      const [puzzlePayload, statsPayload] = await Promise.all([
+        dataApi.dailyGames.puzzle(gameId, { difficulty, level: targetLevel }),
+        dataApi.dailyGames.stats().catch(() => null),
+      ]);
+      const data = puzzlePayload.data;
+      setGame(data.game);
+      setPuzzle(data.puzzle);
+      setDifficulty(data.puzzle.difficulty || difficulty);
+      setLevel(Number(data.puzzle.level) || targetLevel);
+      setSession(data.session);
+      setHintsUsed(Number(data.session?.hintsUsed) || 0);
+      setInitialStats(statsPayload ? statsPayload.data : initialStats);
+      setCompletion(null);
+      setDuplicateCompletion(false);
+      setShowVictoryBlast(false);
+      setCelebrations([]);
+      setHint('');
+    } catch (err) {
+      setNextLevelError(err.message || 'The next level could not be loaded. Please retry.');
+    } finally {
+      setNextLevelLoading(false);
+    }
+  };
 
   const requestExit = useCallback(() => {
     if (!puzzle || completion) {
@@ -155,10 +236,11 @@ export default function GamePlay() {
 
   const summary = useMemo(() => {
     if (!completion) return null;
-    const playedMs = Number(completion.completion_ms || 0);
+    const hasScore = completion.score !== undefined && completion.score !== null;
+    const hasElapsed = completion.completion_ms !== undefined && completion.completion_ms !== null;
     return {
-      score: Number(completion.score || 0),
-      elapsedMs: playedMs,
+      score: hasScore ? Number(completion.score) : null,
+      elapsedMs: hasElapsed ? Number(completion.completion_ms) : null,
       previousBest: best,
     };
   }, [best, completion]);
@@ -205,6 +287,7 @@ export default function GamePlay() {
 
   return (
     <div className="game-play-page">
+      <GameIconRain gameId={gameId} icon={game?.icon} intensity="subtle" className="game-play-rain" />
       <header className="game-play-header">
         <button type="button" className="btn btn-ghost game-play-exit" onClick={requestExit}>
           <ArrowLeft size={16} aria-hidden="true" /> Exit
@@ -215,14 +298,21 @@ export default function GamePlay() {
         <div className="game-play-title">
           <h1>{game?.title}</h1>
           <p>
-            {game?.difficulty} · {game?.minutes} min · {game?.points} points
+            {difficulty} · {game?.minutes} min · {game?.points} points · level {level}
             {completion ? ' · completed' : ''}
           </p>
         </div>
+        <div className="game-play-options" aria-label="Puzzle options">
+          <label htmlFor="game-difficulty">Difficulty</label>
+          <select id="game-difficulty" value={difficulty} onChange={(event) => selectDifficulty(event.target.value)} disabled={busy || Boolean(completion)}>
+            {DIFFICULTIES.map((option) => <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}
+          </select>
+          <span>Level {level}</span>
+        </div>
         <div className="game-play-stats">
-          <StatChip label="Time" value={completion ? formatElapsed(Number(completion.completion_ms) || 0) : formatElapsed(elapsed)} icon={Hourglass} />
-          <StatChip label="Hints" value={`${hintsUsed}/${session?.maxHints ?? 5}`} icon={Lightbulb} />
-          <StatChip label="Streak" value={`${initialStats?.currentStreak ?? 0}d`} icon={Flame} />
+          <StatChip label="Time" value={completion ? (completion.completion_ms != null ? formatElapsed(completion.completion_ms) : '—') : formatElapsed(elapsed)} icon={Hourglass} />
+          <StatChip label="Hints" value={session ? `${hintsUsed}/${session.maxHints}` : '—'} icon={Lightbulb} />
+          <StatChip label="Streak" value={initialStats ? `${initialStats.currentStreak}d` : '—'} icon={Flame} />
         </div>
       </header>
 
@@ -251,63 +341,61 @@ export default function GamePlay() {
               <div className={`game-complete-badge ${prefersReducedMotion() ? '' : 'is-celebrating'}`}>
                 <CheckCircle2 size={30} aria-hidden="true" />
               </div>
-              <h2>Puzzle complete</h2>
+              <h2>Challenge Completed!</h2>
               <p className="game-complete-sub">
-                {game?.title} · {game?.difficulty}
+                {game?.title} · {difficulty} · level {level}
               </p>
 
               <div className="game-complete-grid">
                 <div className="game-complete-stat">
                   <Trophy size={17} aria-hidden="true" />
-                  <strong>{summary?.score ?? Number(completion.score || 0)}</strong>
+                  <strong>{summary?.score ?? completion?.score ?? '—'}</strong>
                   <span>points earned</span>
                 </div>
                 <div className="game-complete-stat">
+                  <Award size={17} aria-hidden="true" />
+                  <strong>{completion?.stats?.totalPoints ?? initialStats?.totalPoints ?? '—'}</strong>
+                  <span>total points</span>
+                </div>
+                <div className="game-complete-stat">
                   <Hourglass size={17} aria-hidden="true" />
-                  <strong>{formatElapsed(summary?.elapsedMs)}</strong>
-                  <span>elapsed time</span>
+                  <strong>{summary?.elapsedMs != null ? formatElapsed(summary.elapsedMs) : '—'}</strong>
+                  <span>completion time</span>
                 </div>
                 <div className="game-complete-stat">
                   <Flame size={17} aria-hidden="true" />
-                  <strong>{initialStats?.currentStreak ?? 0}</strong>
+                  <strong>{completion?.stats?.currentStreak ?? initialStats?.currentStreak ?? '—'}</strong>
                   <span>day streak</span>
                 </div>
-                <div className="game-complete-stat">
-                  <Trophy size={17} aria-hidden="true" />
-                  <strong>{best ? best.score : summary?.score ?? 0}</strong>
-                  <span>personal best</span>
-                </div>
+                
               </div>
+
+              {duplicateCompletion && (
+                <p className="game-complete-note" role="status">
+                  This challenge was already banked earlier. No duplicate reward was added.
+                </p>
+              )}
 
               {session && (
                 <p className="game-complete-hints">
                   <Lightbulb size={14} aria-hidden="true" />
-                  {hintsUsed === 0 ? 'Finished without any hints — full points.' : `${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used (−${hintsUsed * 8}% each).`}
+                  {hintsUsed === 0 ? 'Finished without any hints — full points.' : `${hintsUsed} hint${hintsUsed > 1 ? 's' : ''} used (−${hintsUsed * 10}% each).`}
                 </p>
               )}
 
               <div className="game-complete-actions">
-                <button type="button" className="btn btn-primary" onClick={exit}>Back to Daily Games</button>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    setCompletion(null);
-                    setCelebrations([]);
-                    setHint('');
-                    setRetryToken((value) => value + 1);
-                  }}
-                >
-                  Replay the board
-                </button>
+                {nextLevelError && <p className="game-complete-note game-complete-note-error" role="alert">{nextLevelError}</p>}
+                <button type="button" className="btn btn-primary" onClick={nextLevel} disabled={busy || completionSubmitting || nextLevelLoading}>{nextLevelLoading ? 'Loading…' : nextLevelError ? 'Retry Next Level' : 'Next Level'}</button>
+                <button type="button" className="btn btn-secondary" onClick={exit} disabled={completionSubmitting}>Exit to Games</button>
               </div>
               <p className="game-complete-note">
-                Points for this puzzle are already banked — replaying never awards duplicate points.
+                This level is complete. Choose Next Level when you are ready; replaying never awards duplicate points.
               </p>
             </Panel>
           ) : (
             <Panel className="game-board-panel">
               <Board
+                key={puzzle.id}
                 puzzle={puzzle}
                 onComplete={handleComplete}
                 onCheck={handleCheck}
@@ -328,6 +416,22 @@ export default function GamePlay() {
         />
       </div>
 
+      {showVictoryBlast && completion && (
+        <VictoryBlast
+          game={game}
+          completion={completion}
+          stats={initialStats}
+          personalBest={Boolean(best && Number(completion.score || completion.points || 0) >= Number(best.score || 0))}
+          duplicate={duplicateCompletion}
+          level={level}
+          difficulty={difficulty}
+          onContinue={nextLevel}
+          onBack={exit}
+          onClose={closeVictoryBlast}
+          nextLevelLoading={nextLevelLoading}
+        />
+      )}
+
       <Modal
         open={confirmExit}
         onClose={() => setConfirmExit(false)}
@@ -336,7 +440,7 @@ export default function GamePlay() {
       >
         <div className="game-exit-actions">
           <button type="button" className="btn btn-ghost" onClick={() => setConfirmExit(false)}>Keep playing</button>
-          <button type="button" className="btn btn-primary" onClick={exit}>Leave puzzle</button>
+          <button type="button" className="btn btn-primary" onClick={exit}>Exit</button>
         </div>
       </Modal>
     </div>

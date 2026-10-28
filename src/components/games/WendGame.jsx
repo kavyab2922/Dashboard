@@ -90,6 +90,13 @@ export default function WendGame({ puzzle, onComplete, onCheck, onHint, hint, hi
   const foundSet = new Set(Object.values(found).flat().map((cell) => `${cell.row}-${cell.col}`));
   const foundCount = Object.keys(found).length;
 
+  const reset = () => {
+    setFound({});
+    setPreview(null);
+    setFeedback(null);
+    setSolved(false);
+  };
+
   return (
     <div className="game-stage">
       <div className="wend-meta">
@@ -137,8 +144,8 @@ export default function WendGame({ puzzle, onComplete, onCheck, onHint, hint, hi
       </Feedback>
 
       <GameControls
-        canReset={false}
-        onReset={null}
+        canReset={foundCount > 0}
+        onReset={reset}
         onHint={onHint}
         hintDisabled={hintsUsed >= maxHints}
         submitDisabled

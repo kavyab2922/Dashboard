@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Eraser } from 'lucide-react';
 import { Feedback, GameControls } from './common';
 
@@ -25,6 +25,13 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
   const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const boardRef = useRef(null);
+
+  useEffect(() => {
+    setCells(givens.map((value) => value || 0));
+    setSelected(givens.findIndex((value) => !value));
+    setHistory([]);
+    setFeedback(null);
+  }, [puzzle.id, givens]);
 
   const clashes = useMemo(() => {
     const map = new Map();

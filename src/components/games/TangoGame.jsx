@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { Feedback, GameControls } from './common';
 
@@ -35,6 +35,12 @@ export default function TangoGame({ puzzle, onComplete, onHint, hint, hintsUsed,
   const [cells, setCells] = useState(() => givens.map((value) => value));
   const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState(null);
+
+  useEffect(() => {
+    setCells(givens.map((value) => value));
+    setHistory([]);
+    setFeedback(null);
+  }, [puzzle.id, givens]);
 
   const badRows = useMemo(() => rowIssues(cells, size), [cells, size]);
   const badCols = useMemo(() => colIssues(cells, size), [cells, size]);
@@ -133,7 +139,7 @@ export default function TangoGame({ puzzle, onComplete, onHint, hint, hintsUsed,
         onHint={onHint}
         hintDisabled={hintsUsed >= maxHints}
         onSubmit={submit}
-        submitDisabled={busy}
+        submitDisabled={busy || filled !== size * size}
         submitLabel="Check board"
       />
     </div>

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ArrowUp, Check, CheckCircle2, Crown, Grid2X2, HelpCircle, Lightbulb, RotateCcw,
-  Route, Shapes, SunMoon, Target, Type, Undo2, XCircle,
+  ArrowUp, Check, CheckCircle2, CircleDot, Crown, Grid2X2, HelpCircle, Lightbulb, RotateCcw,
+  Route, Shapes, Sparkles, Star, SunMoon, Target, Type, Undo2, XCircle,
 } from 'lucide-react';
 
 /** Icon names stored in hcm.games mapped to lucide components. */
 export const GAME_ICONS = {
-  Crown, Target, ArrowUp, Route, SunMoon, Grid2X2, Type, Shapes,
-  Lightbulb, Sparkles: Lightbulb,
+  ArrowUp, Check, CheckCircle2, CircleDot, Crown, Grid2X2, Lightbulb, Route,
+  Shapes, Sparkles, Star, SunMoon, Target, Type, HelpCircle,
 };
 
 /** Region / theme tones used by the games table mapped to design-system tags. */
@@ -79,8 +79,8 @@ export function Feedback({ tone = 'info', children, action }) {
 }
 
 /**
- * Standard control strip: every board exposes the same buttons so labels,
- * spacing and keyboard behaviour stay identical across the eight games.
+ * Standard control strip: every active board exposes the same buttons so labels,
+ * spacing and keyboard behaviour stay consistent across the four games.
  */
 export function GameControls({
   canUndo, canReset, onUndo, onReset, onHint, onSubmit, submitLabel = 'Check answer',

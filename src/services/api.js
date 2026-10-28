@@ -4,6 +4,15 @@
  */
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+// Provider URLs are centralized for diagnostics/documentation; gameplay fetches
+// stay server-side so answer keys and reward validation are never exposed.
+export const GAME_APIS = Object.freeze({
+  sudoku: 'https://sudoku-api.vercel.app/api/dosuku',
+  quiz: 'https://opentdb.com/api.php?amount=10&type=multiple',
+  word: 'https://api.datamuse.com/words?ml=game&max=10',
+  trivia: 'https://the-trivia-api.com/v2/questions?limit=10',
+});
+
 export function getToken() {
   return localStorage.getItem('hrobit-auth-token');
 }
@@ -108,11 +117,17 @@ export const dataApi = {
   dailyGames: {
     list: () => get('/daily-games'),
     stats: () => get('/daily-games/me/stats'),
-    puzzle: (gameId) => get(`/daily-games/${gameId}/puzzle`),
-    start: (gameId) => post(`/daily-games/${gameId}/sessions`),
-    check: (gameId, submission) => post(`/daily-games/${gameId}/check`, { submission }),
-    hint: (gameId) => post(`/daily-games/${gameId}/hint`),
-    complete: (gameId, submission) => post(`/daily-games/${gameId}/complete`, { submission }),
+    puzzle: (gameId, options = {}) => {
+      const params = new URLSearchParams();
+      if (options.difficulty) params.set('difficulty', options.difficulty);
+      if (options.level) params.set('level', options.level);
+      const query = params.toString();
+      return get(`/daily-games/${gameId}/puzzle${query ? `?${query}` : ''}`);
+    },
+    start: (gameId, options = {}) => post(`/daily-games/${gameId}/sessions`, options),
+    check: (gameId, submission, options = {}) => post(`/daily-games/${gameId}/check`, { submission, ...options }),
+    hint: (gameId, options = {}) => post(`/daily-games/${gameId}/hint`, options),
+    complete: (gameId, submission, options = {}) => post(`/daily-games/${gameId}/complete`, { submission, ...options }),
     leaderboard: (period = 'all') => get(`/daily-games/leaderboard?period=${encodeURIComponent(period)}`),
     champions: (period = 'all') => get(`/daily-games/champions?period=${encodeURIComponent(period)}`),
     celebrations: () => get('/daily-games/celebrations'),
