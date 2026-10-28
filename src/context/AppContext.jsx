@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { authApi, dataApi, getToken } from '../services/api';
 import { normalizeUser } from '../utils/user';
 
@@ -119,7 +120,7 @@ export function AppProvider({ children }) {
     if (!requestToken) { setUser(null); setUserLoading(false); return null; }
     setUserLoading(true);
     try {
-      const rawUser = await authApi.me();
+      const rawUser = await authApi.profile();
       if (requestToken !== getToken()) return null;
       const nextUser = normalizeUser(rawUser.user);
       setUser(nextUser);
@@ -127,7 +128,7 @@ export function AppProvider({ children }) {
       return nextUser;
     } catch (err) {
       if (requestToken !== getToken()) return null;
-      if (err?.status === 401 || err?.status === 404) {
+      if (err?.status === 401) {
         endSession();
       } else {
         // Keep the last known user on transient errors, but surface nothing fake.
@@ -153,7 +154,12 @@ export function AppProvider({ children }) {
     refreshUser();
   }, [refreshUser]);
 
-  // --- Collections (all from the backend API / PostgreSQL) ---
+  // --- Collections (load only what the active route needs) ---
+  const { pathname } = useLocation();
+  const enabled = sessionActive && !sessionEnded;
+  const routeIs = (...paths) => paths.includes(pathname);
+  const routeEnabled = (...paths) => enabled && routeIs(...paths);
+
   const announcementsLoader = useCallback(() => dataApi.announcements.list(), []);
   const eventsLoader = useCallback(() => dataApi.events.list(), []);
   const quickLinksLoader = useCallback(() => dataApi.quickLinks.list(), []);
@@ -166,19 +172,18 @@ export function AppProvider({ children }) {
   const employeesLoader = useCallback(() => dataApi.employees.list(), []);
   const celebrationsLoader = useCallback(() => dataApi.celebrations.list(), []);
 
-  const enabled = sessionActive && !sessionEnded;
-
-  const announcements = useCollection(announcementsLoader, enabled, sessionVersion);
-  const events = useCollection(eventsLoader, enabled, sessionVersion);
-  const quickLinks = useCollection(quickLinksLoader, enabled, sessionVersion);
-  const contacts = useCollection(contactsLoader, enabled, sessionVersion);
-  const kudos = useCollection(kudosLoader, enabled, sessionVersion);
+  const adminRoute = routeEnabled('/admin');
+  const announcements = useCollection(announcementsLoader, routeEnabled('/', '/announcements') || adminRoute, sessionVersion);
+  const events = useCollection(eventsLoader, routeEnabled('/', '/events', '/announcements') || adminRoute, sessionVersion);
+  const quickLinks = useCollection(quickLinksLoader, routeEnabled('/', '/quick-links') || adminRoute, sessionVersion);
+  const contacts = useCollection(contactsLoader, routeEnabled('/', '/events', '/hr-contacts') || adminRoute, sessionVersion);
+  const kudos = useCollection(kudosLoader, routeEnabled('/') || adminRoute, sessionVersion);
   const notifications = useCollection(notificationsLoader, enabled, sessionVersion);
-  const courses = useCollection(coursesLoader, enabled, sessionVersion);
-  const faqs = useCollection(faqsLoader, enabled, sessionVersion);
-  const games = useCollection(gamesLoader, enabled, sessionVersion);
-  const employees = useCollection(employeesLoader, enabled, sessionVersion);
-  const celebrations = useCollection(celebrationsLoader, enabled, sessionVersion);
+  const courses = useCollection(coursesLoader, routeEnabled('/', '/learning') || adminRoute, sessionVersion);
+  const faqs = useCollection(faqsLoader, routeEnabled('/faq') || adminRoute, sessionVersion);
+  const games = useCollection(gamesLoader, routeEnabled('/games') || adminRoute, sessionVersion);
+  const employees = useCollection(employeesLoader, routeEnabled('/hr-contacts') || adminRoute, sessionVersion);
+  const celebrations = useCollection(celebrationsLoader, routeEnabled('/') || adminRoute, sessionVersion);
 
   // --- CRUD helpers: persist to the database, then refresh from the server ---
   const run = useCallback(async (action, refresh) => {

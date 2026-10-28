@@ -67,6 +67,7 @@ export const authApi = {
   login(credentials) { return request('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }); },
   register(details) { return request('/auth/register', { method: 'POST', body: JSON.stringify(details) }); },
   me() { return get('/auth/me'); },
+  profile() { return get('/profile'); },
   updateProfile(changes) { return put('/profile', changes); },
   uploadFile,
 };

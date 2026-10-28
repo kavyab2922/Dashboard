@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, MapPin, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
-import { formatDate } from '../../utils/format';
+import { formatDate, getEventImage } from '../../utils/format';
 
 export default function EventsShowcase() {
   const { events, eventsState } = useApp();
@@ -67,11 +67,7 @@ export default function EventsShowcase() {
 
         <div className="events-featured-card">
           <div className="events-featured-media">
-            {featured.image ? (
-              <img src={featured.image} alt={featured.title} className="events-featured-img" loading="lazy" />
-            ) : (
-              <div className="events-featured-img" aria-hidden="true" />
-            )}
+            <img src={getEventImage(featured)} alt={featured.title} className="events-featured-img" loading="lazy" />
             <div className="events-featured-overlay" />
             <span className="events-featured-date">
               <CalendarDays size={13}/> {formatDate(featured.date, { month: 'short', day: 'numeric', year: 'numeric' })}

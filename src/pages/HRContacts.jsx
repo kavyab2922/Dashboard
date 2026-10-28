@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, AtSign, Building2, ChevronDown, Mail, MapPin, Phone, Search, Users } from 'lucide-react';
-import EditableCollectionPage from '../components/common/EditableCollectionPage';
+import { ArrowUpRight, AtSign, Building2, ChevronDown, Mail, MapPin, Search } from 'lucide-react';
 import useClickOutside from '../hooks/useClickOutside';
-import { Avatar, Button, PageTitle, Panel, Tag } from '../components/common/UI';
+import { Avatar, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 
 const buildTeamsChatUrl = (email) => (
@@ -12,14 +11,31 @@ const buildTeamsChatUrl = (email) => (
 );
 
 export default function HRContacts() {
-  const { contacts, contactsState, setToast } = useApp();
+  const { contacts, contactsState, setToast, user } = useApp();
   const [search, setSearch] = useState('');
   const [team, setTeam] = useState('All');
   const [departmentOpen, setDepartmentOpen] = useState(false);
   const [menuPlacement, setMenuPlacement] = useState('down');
-  const [manage, setManage] = useState(false);
   const departmentRef = useRef(null);
-  const teams = ['All', ...new Set(contacts.map((item) => item.team))];
+  const currentUserContact = user?.name?.trim() ? {
+    id: `hr-current-${user.id || user.email || user.name}`,
+    employee_code: user.employee_code || user.employeeCode || null,
+    name: user.name.trim(),
+    team: user.team || user.department || 'People & Culture',
+    role: user.designation || user.jobTitle || user.role || 'Employee',
+    focus: 'Your HR Orbit employee profile and workplace support',
+    email: user.email || user.official_email || null,
+    location: user.location || 'Bengaluru',
+    initials: user.initials,
+    color: 'blue',
+    avatar: user.avatar || null,
+    cover: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=85',
+  } : null;
+  const contactsWithCurrentUser = currentUserContact && !contacts.some((item) =>
+    item.email && currentUserContact.email && item.email.toLowerCase() === currentUserContact.email.toLowerCase()
+  ) ? [currentUserContact, ...contacts] : contacts;
+  const validContacts = contactsWithCurrentUser.filter((item) => item.name?.trim());
+  const teams = ['All', ...new Set(validContacts.map((item) => item.team))];
 
   useClickOutside(departmentRef, departmentOpen, () => setDepartmentOpen(false));
 
@@ -39,21 +55,12 @@ export default function HRContacts() {
     };
   }, [departmentOpen, teams.length]);
 
-  const filtered = contacts.filter((item) =>
-    `${item.name} ${item.team} ${item.focus} ${item.location}`.toLowerCase().includes(search.toLowerCase()) &&
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = validContacts.filter((item) =>
+    `${item.name} ${item.email || ''} ${item.employee_code || ''} ${item.role || ''} ${item.team} ${item.focus} ${item.location}`
+      .toLowerCase()
+      .includes(normalizedSearch) &&
     (team === 'All' || item.team === team)
-  );
-
-  if (manage) return (
-    <>
-      <EditableCollectionPage
-        type="contacts"
-        embedded
-        backAction={(
-          <Button variant="secondary" onClick={() => setManage(false)}>← Back to Quick Connect</Button>
-        )}
-      />
-    </>
   );
 
   return (
@@ -62,7 +69,6 @@ export default function HRContacts() {
         eyebrow="THE PEOPLE BEHIND THE HELP"
         title="Quick Connect"
         description="Dedicated People Partners and HR Specialists ready to assist with benefits, career development, leave and operations."
-        actions={<Button variant="secondary" onClick={() => setManage(true)}>Manage contacts</Button>}
       />
 
       {contactsState.loading && (
@@ -71,7 +77,7 @@ export default function HRContacts() {
       {contactsState.error && (
         <Panel><p className="muted">Unable to load HR contacts: {contactsState.error}</p></Panel>
       )}
-      {!contactsState.loading && !contactsState.error && contacts.length === 0 && (
+      {!contactsState.loading && !contactsState.error && validContacts.length === 0 && (
         <Panel><p className="muted">No HR contacts found in the employee directory.</p></Panel>
       )}
 
@@ -83,7 +89,7 @@ export default function HRContacts() {
             Connect directly with your dedicated HR points of contact for confidential support, benefits advisement, and internal transfers.
           </p>
           <div className="contacts-hero-stats">
-            <span><strong>{contacts.length.toString().padStart(2,'0')}</strong> verified HR specialists</span>
+            <span><strong>{validContacts.length.toString().padStart(2,'0')}</strong> verified HR specialists</span>
             <span><strong>{teams.length - 1}</strong> departments represented</span>
           </div>
         </div>
@@ -95,7 +101,7 @@ export default function HRContacts() {
             <span className="contacts-filter-kicker">Find your HR partner</span>
             <h2>Browse the directory</h2>
           </div>
-          <span className="contacts-filter-count">{filtered.length} of {contacts.length} contacts</span>
+          <span className="contacts-filter-count">{filtered.length} of {validContacts.length} contacts</span>
         </div>
         <div className="contacts-toolbar">
           <label className="inline-search contacts-search">
@@ -155,6 +161,7 @@ export default function HRContacts() {
 
             <div className="contact-card-body">
               <h3>{contact.name}</h3>
+              {contact.role && <p className="contact-role">{contact.role}</p>}
               <p className="contact-focus">{contact.focus}</p>
               {contact.location && (
                 <div className="contact-detail-row">

@@ -3,12 +3,38 @@ import { CalendarDays, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, 
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
 import { Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
-import { formatDate } from '../utils/format';
+import { formatDate, getEventImage } from '../utils/format';
+
+const EVENT_MANAGE_KEY = 'hrobit-event-manage-open';
+
+function hasOpenEventEditor() {
+  try {
+    const manageOpen = sessionStorage.getItem(EVENT_MANAGE_KEY) || localStorage.getItem(EVENT_MANAGE_KEY);
+    const draft = sessionStorage.getItem('hrobit-event-editor-draft') || localStorage.getItem('hrobit-event-editor-draft');
+    return manageOpen === 'true' || Boolean(JSON.parse(draft || 'null')?.open);
+  } catch {
+    return false;
+  }
+}
 
 export default function Events() {
   const { events, eventsState, isHrAdmin, setToast } = useApp();
   const [view, setView] = useState('list');
-  const [manage, setManage] = useState(false);
+  const [manage, setManage] = useState(hasOpenEventEditor);
+  const setManageView = (nextValue) => {
+    setManage(nextValue);
+    try {
+      if (nextValue) {
+        sessionStorage.setItem(EVENT_MANAGE_KEY, 'true');
+        localStorage.setItem(EVENT_MANAGE_KEY, 'true');
+      } else {
+        sessionStorage.removeItem(EVENT_MANAGE_KEY);
+        localStorage.removeItem(EVENT_MANAGE_KEY);
+      }
+    } catch {
+      // Continue normally when browser storage is unavailable.
+    }
+  };
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -37,7 +63,7 @@ export default function Events() {
       <EditableCollectionPage
         type="events"
         embedded
-        backAction={<Button variant="secondary" onClick={() => setManage(false)}>← Back to events</Button>}
+        backAction={<Button variant="secondary" onClick={() => setManageView(false)}>← Back to events</Button>}
       />
     </>
   );
@@ -56,7 +82,7 @@ export default function Events() {
         eyebrow="MAKE TIME FOR CONNECTION"
         title="Upcoming events"
         description="Company townhalls, technical deep dives, wellness workshops and team gatherings."
-        actions={isHrAdmin ? <Button variant="secondary" onClick={() => setManage(true)}>Manage events</Button> : null}
+        actions={isHrAdmin ? <Button variant="secondary" onClick={() => setManageView(true)}>Manage events</Button> : null}
       />
 
       <div className="events-hero">
@@ -96,15 +122,13 @@ export default function Events() {
         <div className="events-list">
           {upcomingEvents.map((event) => (
             <Panel className="event-card" key={event.id}>
-              {event.image && (
-                <div className="event-card-thumb">
-                  <img src={event.image} alt={event.title} className="event-thumb-img" loading="lazy" />
+              <div className="event-card-thumb">
+                <img src={getEventImage(event)} alt={event.title} className="event-thumb-img" loading="lazy" />
                   <div className={`event-date-tile event-${event.color || 'mint'}`}>
                     <strong>{new Date(`${event.date}T12:00:00`).getDate()}</strong>
                     <span>{new Date(`${event.date}T12:00:00`).toLocaleDateString('en',{month:'short'}).toUpperCase()}</span>
                   </div>
-                </div>
-              )}
+              </div>
               <div className="event-card-main">
                 <div className="event-card-top">
                   <Tag tone={event.category === 'Learning' ? 'purple' : event.category === 'Wellbeing' ? 'mint' : 'blue'}>
