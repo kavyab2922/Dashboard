@@ -7,6 +7,7 @@ import QuickLinksPage from './pages/QuickLinksPage';
 import HRContacts from './pages/HRContacts';
 import HRFAQ from './pages/HRFAQ';
 import Games from './pages/Games';
+import GamePlay from './pages/GamePlay';
 import LearningHub from './pages/LearningHub';
 import Recognition from './pages/Recognition';
 import Community from './pages/Community';
@@ -27,5 +28,5 @@ function RequireHrAdmin({ children }) {
 function NotFound() { return <><PageTitle title="Page not found" description="That page isn't part of this demo dashboard."/><Panel><p>Use the navigation to continue exploring the employee hub.</p><a className="btn btn-primary" href="/">Back to dashboard</a></Panel></>; }
 
 export default function App() {
-  return <Routes><Route path="/login" element={<Login/>}/><Route path="/register" element={<Login mode="register"/>}/><Route element={<AppLayout/>}><Route index element={<Dashboard/>}/><Route path="/dashboard" element={<Navigate to="/" replace/>}/><Route path="/announcements" element={<Announcements/>}/><Route path="/events" element={<Events/>}/><Route path="/quick-links" element={<QuickLinksPage/>}/><Route path="/hr-contacts" element={<HRContacts/>}/><Route path="/faq" element={<HRFAQ/>}/><Route path="/games" element={<Games/>}/><Route path="/learning" element={<LearningHub/>}/><Route path="/recognition" element={<Recognition/>}/><Route path="/community" element={<Community/>}/><Route path="/profile" element={<Profile/>}/><Route path="/settings" element={<Settings/>}/><Route path="/admin" element={<RequireHrAdmin><Admin/></RequireHrAdmin>}/><Route path="*" element={<NotFound/>}/></Route></Routes>;
+  return <Routes><Route path="/login" element={<Login/>}/><Route path="/register" element={<Login mode="register"/>}/><Route element={<AppLayout/>}><Route index element={<Dashboard/>}/><Route path="/dashboard" element={<Navigate to="/" replace/>}/><Route path="/announcements" element={<Announcements/>}/><Route path="/events" element={<Events/>}/><Route path="/quick-links" element={<QuickLinksPage/>}/><Route path="/hr-contacts" element={<HRContacts/>}/><Route path="/faq" element={<HRFAQ/>}/><Route path="/games" element={<Games/>}/><Route path="/games/:gameId" element={<GamePlay/>}/><Route path="/learning" element={<LearningHub/>}/><Route path="/recognition" element={<Recognition/>}/><Route path="/community" element={<Community/>}/><Route path="/profile" element={<Profile/>}/><Route path="/settings" element={<Settings/>}/><Route path="/admin" element={<RequireHrAdmin><Admin/></RequireHrAdmin>}/><Route path="*" element={<NotFound/>}/></Route></Routes>;
 }
