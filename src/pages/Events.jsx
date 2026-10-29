@@ -1,40 +1,39 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, Rows3 } from 'lucide-react';
-import EditableCollectionPage from '../components/common/EditableCollectionPage';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, Rows3 } from 'lucide-react';
+import EditableCollectionPage, { canRestoreAfterRefresh, isEditorOpen, markRestoreUsed } from '../components/common/EditableCollectionPage';
 import { Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import { formatDate, getEventImage } from '../utils/format';
 
 const EVENT_MANAGE_KEY = 'hrobit-event-manage-open';
 
-function hasOpenEventEditor() {
-  try {
-    const manageOpen = sessionStorage.getItem(EVENT_MANAGE_KEY) || localStorage.getItem(EVENT_MANAGE_KEY);
-    const draft = sessionStorage.getItem('hrobit-event-editor-draft') || localStorage.getItem('hrobit-event-editor-draft');
-    return manageOpen === 'true' || Boolean(JSON.parse(draft || 'null')?.open);
-  } catch {
-    return false;
-  }
-}
-
 export default function Events() {
   const { events, eventsState, isHrAdmin, setToast } = useApp();
   const [view, setView] = useState('list');
-  const [manage, setManage] = useState(hasOpenEventEditor);
+  // Stay in the manage view across a browser refresh; opening the page from a link shows the events page.
+  const [manage, setManage] = useState(() => {
+    if (!canRestoreAfterRefresh('events-page')) return false;
+    try { return sessionStorage.getItem(EVENT_MANAGE_KEY) === 'true' || isEditorOpen('events'); } catch { return false; }
+  });
+  useEffect(() => {
+    markRestoreUsed('events-page');
+    // If the refresh didn't land in the manage view, Manage events must not reopen an old editor.
+    if (!manage) markRestoreUsed('events-editor');
+  }, []);
   const setManageView = (nextValue) => {
     setManage(nextValue);
     try {
-      if (nextValue) {
-        sessionStorage.setItem(EVENT_MANAGE_KEY, 'true');
-        localStorage.setItem(EVENT_MANAGE_KEY, 'true');
-      } else {
-        sessionStorage.removeItem(EVENT_MANAGE_KEY);
-        localStorage.removeItem(EVENT_MANAGE_KEY);
-      }
-    } catch {
-      // Continue normally when browser storage is unavailable.
-    }
+      if (nextValue) sessionStorage.setItem(EVENT_MANAGE_KEY, 'true');
+      else sessionStorage.removeItem(EVENT_MANAGE_KEY);
+    } catch { /* storage may be unavailable */ }
   };
+
+  // The sidebar link fires this event so it can leave the manage view.
+  useEffect(() => {
+    const showList = () => setManageView(false);
+    window.addEventListener('hrobit:show-events-list', showList);
+    return () => window.removeEventListener('hrobit:show-events-list', showList);
+  }, []);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -63,7 +62,7 @@ export default function Events() {
       <EditableCollectionPage
         type="events"
         embedded
-        backAction={<Button variant="secondary" onClick={() => setManageView(false)}>← Back to events</Button>}
+        backAction={<button type="button" className="icon-button back-icon-button" aria-label="Back to events" title="Back to events" onClick={() => setManageView(false)}><ArrowLeft size={18} /></button>}
       />
     </>
   );

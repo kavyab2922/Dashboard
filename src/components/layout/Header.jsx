@@ -217,6 +217,14 @@ export default function Header({ pageTitle, onMenuClick }) {
     navigate('/login', { replace: true });
   };
 
+  // Esc dismisses the log-out confirmation.
+  useEffect(() => {
+    if (!logoutConfirmOpen) return undefined;
+    const onKeyDown = (event) => { if (event.key === 'Escape') setLogoutConfirmOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [logoutConfirmOpen]);
+
   return (
     <>
       <header className="topbar">
@@ -482,18 +490,22 @@ export default function Header({ pageTitle, onMenuClick }) {
       <Modal
         open={logoutConfirmOpen}
         onClose={() => setLogoutConfirmOpen(false)}
-        title="Log out?"
-        description="Are you sure you want to log out of HROrbit?"
+        title="Log out of HROrbit?"
         className="logout-confirm-modal"
         hideClose
       >
-        <div className="modal-actions">
-          <Button variant="secondary" onClick={() => setLogoutConfirmOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={confirmLogout}>
-            <LogOut size={14} /> Log out
-          </Button>
+        <div className="logout-confirm">
+          <span className="logout-confirm-icon" aria-hidden="true"><LogOut size={22} /></span>
+          <h2>Log out of HROrbit?</h2>
+          <p>You're signed in as <strong>{displayName}</strong>. You'll need to sign in again to continue.</p>
+          <div className="logout-confirm-actions">
+            <Button variant="secondary" autoFocus onClick={() => setLogoutConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button className="btn-danger" onClick={confirmLogout}>
+              <LogOut size={15} /> Log out
+            </Button>
+          </div>
         </div>
       </Modal>
     </>

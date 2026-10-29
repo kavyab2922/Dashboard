@@ -1,19 +1,40 @@
-import { useState } from 'react';
-import { ArrowUpRight, Bookmark, CalendarDays, Megaphone, Pin, Search, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, Bookmark, CalendarDays, Megaphone, Pin, Search, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import EditableCollectionPage from '../components/common/EditableCollectionPage';
+import EditableCollectionPage, { canRestoreAfterRefresh, isEditorOpen, markRestoreUsed } from '../components/common/EditableCollectionPage';
 import { PageTitle, Panel, Tag, Button, Modal, PanelHeading } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import { formatDate } from '../utils/format';
 
+const ANNOUNCEMENT_MANAGE_KEY = 'hrobit-announcement-manage-open';
+
 export default function Announcements() {
   const { announcements, announcementsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
-  const [manage, setManage] = useState(false);
+  // Stay in the manage view across a browser refresh; opening the page from a link shows the feed.
+  const [manage, setManageState] = useState(() => {
+    if (!canRestoreAfterRefresh('announcements-page')) return false;
+    try { return sessionStorage.getItem(ANNOUNCEMENT_MANAGE_KEY) === 'true' || isEditorOpen('announcements'); } catch { return false; }
+  });
+  useEffect(() => {
+    markRestoreUsed('announcements-page');
+    // If the refresh didn't land in the manage view, Manage posts must not reopen an old editor.
+    if (!manage) markRestoreUsed('announcements-editor');
+  }, []);
+  const setManage = (nextValue) => {
+    setManageState(nextValue);
+    try {
+      if (nextValue) sessionStorage.setItem(ANNOUNCEMENT_MANAGE_KEY, 'true');
+      else sessionStorage.removeItem(ANNOUNCEMENT_MANAGE_KEY);
+    } catch { /* storage may be unavailable */ }
+  };
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
 
   const filters = ['All', ...new Set(announcements.map((item) => item.category))];
+  const unreadCount = announcements.filter((item) => !item.read).length;
+  const pinnedCount = announcements.filter((item) => item.pinned).length;
+  const latestDate = announcements.reduce((latest, item) => (item.date && item.date > latest ? item.date : latest), '');
   const filtered = announcements.filter((item) =>
     `${item.title} ${item.description} ${item.details}`.toLowerCase().includes(search.toLowerCase()) &&
     (category === 'All' || item.category === category)
@@ -28,13 +49,19 @@ export default function Announcements() {
     }
   };
 
+  // The sidebar link fires this event so it can leave the manage view.
+  useEffect(() => {
+    const showFeed = () => setManage(false);
+    window.addEventListener('hrobit:show-announcements-feed', showFeed);
+    return () => window.removeEventListener('hrobit:show-announcements-feed', showFeed);
+  }, []);
+
   if (manage) return (
-    <>
-      <EditableCollectionPage type="announcements" embedded/>
-      <div className="back-to-feed">
-        <Button variant="secondary" onClick={() => setManage(false)}>← Back to announcements feed</Button>
-      </div>
-    </>
+    <EditableCollectionPage
+      type="announcements"
+      embedded
+      backAction={<button type="button" className="icon-button back-icon-button" aria-label="Back to announcements" title="Back to announcements" onClick={() => setManage(false)}><ArrowLeft size={18} /></button>}
+    />
   );
 
   return (
@@ -46,19 +73,22 @@ export default function Announcements() {
         actions={isHrAdmin ? <Button onClick={() => setManage(true)}>Manage posts</Button> : null}
       />
 
-      <div className="announcement-feature">
+      <section className="announcement-feature">
         <div className="announcement-feature-text">
-          <Tag tone="mint">IN THE LOOP</Tag>
-          <h2>Stay connected to what matters.</h2>
-          <p>
-            Read key company announcements, save time on policy updates, and stay informed on high-impact team developments.
-          </p>
-          <div className="announcement-feature-meta">
-            <span><Megaphone size={14}/> {announcements.length} updates</span>
-            <span><CalendarDays size={14}/> Updated weekly</span>
+          <span className="announcement-feature-icon" aria-hidden="true"><Megaphone size={22}/></span>
+          <div>
+            <Tag tone="mint">IN THE LOOP</Tag>
+            <h2>Stay connected to what matters.</h2>
+            <p>Company news, policy updates and important notices — all in one place.</p>
           </div>
         </div>
-      </div>
+        <dl className="announcement-stats">
+          <div><dt>Updates</dt><dd>{announcements.length}</dd></div>
+          <div className={unreadCount ? 'is-highlight' : ''}><dt>Unread</dt><dd>{unreadCount}</dd></div>
+          <div><dt>Pinned</dt><dd>{pinnedCount}</dd></div>
+          <div><dt>Latest</dt><dd>{latestDate ? formatDate(latestDate, { month: 'short', day: 'numeric' }) : '—'}</dd></div>
+        </dl>
+      </section>
 
       <Panel className="announcement-feed-panel">
         <div className="feed-toolbar">

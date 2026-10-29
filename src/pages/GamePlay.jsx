@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { dataApi } from '../services/api';
 import { useApp } from '../context/AppContext';
-import { Modal, Panel } from '../components/common/UI';
+import { Modal, Panel, Select } from '../components/common/UI';
 import {
   GameIcon, RulesPanel, StatChip, formatElapsed, useTimer, prefersReducedMotion,
 } from '../components/games/common';
@@ -304,9 +304,7 @@ export default function GamePlay() {
         </div>
         <div className="game-play-options" aria-label="Puzzle options">
           <label htmlFor="game-difficulty">Difficulty</label>
-          <select id="game-difficulty" value={difficulty} onChange={(event) => selectDifficulty(event.target.value)} disabled={busy || Boolean(completion)}>
-            {DIFFICULTIES.map((option) => <option key={option} value={option}>{option[0].toUpperCase() + option.slice(1)}</option>)}
-          </select>
+          <Select id="game-difficulty" className="game-difficulty-select" ariaLabel="Difficulty" value={difficulty} onChange={selectDifficulty} disabled={busy || Boolean(completion)} options={DIFFICULTIES.map((option) => ({ value: option, label: option[0].toUpperCase() + option.slice(1) }))} />
           <span>Level {level}</span>
         </div>
         <div className="game-play-stats">

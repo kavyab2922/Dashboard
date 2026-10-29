@@ -160,6 +160,8 @@ export const dataApi = {
     create: (body) => post('/events', body),
     update: (id, body) => put(`/events/${id}`, body),
     remove: (id) => del(`/events/${id}`),
+    // holidayId is the numeric part of "holiday-12"; an empty image restores the default cover.
+    setHolidayCover: (holidayId, image) => put(`/events/holiday/${holidayId}/cover`, { image }),
   },
 
   quickLinks: {

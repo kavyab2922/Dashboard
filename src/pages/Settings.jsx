@@ -10,7 +10,7 @@ import {
   UserRound,
   WandSparkles,
 } from 'lucide-react';
-import { Avatar, PageTitle, Panel, Button, Tag } from '../components/common/UI';
+import { Avatar, PageTitle, Panel, Button, Select, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import RoleSwitch from '../components/common/RoleSwitch';
 
@@ -102,9 +102,7 @@ export default function Settings() {
 
       <div className="settings-mobile-select-wrap">
         <label htmlFor="settings-section-select">Settings section</label>
-        <select id="settings-section-select" value={activeSection} onChange={(event) => setActiveSection(event.target.value)}>
-          {sections.map((section) => <option key={section.id} value={section.id}>{section.label}</option>)}
-        </select>
+        <Select id="settings-section-select" ariaLabel="Settings section" value={activeSection} onChange={setActiveSection} options={sections.map((section) => ({ value: section.id, label: section.label }))} />
       </div>
 
       <div className="settings-layout">

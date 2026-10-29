@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BadgeCheck, CalendarDays, Camera, Check, Edit3, Mail, MapPin, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { BadgeCheck, CalendarDays, Camera, Check, Edit3, Mail, MapPin, Minus, Plus, ShieldCheck, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { Avatar, Button, FormField, Modal, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import { authApi, resolveAssetUrl } from '../services/api';
@@ -34,6 +34,32 @@ function computeAnniversary(joinedDate) {
   };
 }
 
+// Crops the chosen photo to a 512×512 square at the selected zoom before upload.
+function createEditedAvatar(file, previewUrl, zoom) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const context = canvas.getContext('2d');
+      const scale = Math.max(size / image.width, size / image.height) * zoom;
+      context.translate(size / 2, size / 2);
+      context.drawImage(image, -(image.width * scale) / 2, -(image.height * scale) / 2, image.width * scale, image.height * scale);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error('Unable to prepare the profile photo.'));
+          return;
+        }
+        resolve(new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.92);
+    };
+    image.onerror = () => reject(new Error('Unable to read the selected profile photo.'));
+    image.src = previewUrl;
+  });
+}
+
 export default function Profile() {
   const { user, userLoading, updateProfile, setToast } = useApp();
   const [editOpen, setEditOpen] = useState(false);
@@ -45,6 +71,64 @@ export default function Profile() {
   const [coverPreview, setCoverPreview] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
   const [coverSaving, setCoverSaving] = useState(false);
+
+  // Profile photo editor: the chosen file stays local until Save.
+  const avatarInputRef = useRef(null);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarZoom, setAvatarZoom] = useState(1);
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [savedAvatarBroken, setSavedAvatarBroken] = useState(false);
+  const savedAvatar = resolveAssetUrl(user?.avatar) || null;
+
+  const closeAvatarEditor = () => {
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarPreview(null);
+    setAvatarFile(null);
+    setAvatarRemoved(false);
+    setAvatarZoom(1);
+    setSavedAvatarBroken(false);
+    setAvatarEditorOpen(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  };
+
+  const onAvatarFileSelected = (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setToast('Please choose an image file.');
+      return;
+    }
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setAvatarRemoved(false);
+    setAvatarZoom(1);
+    setAvatarEditorOpen(true);
+  };
+
+  const saveAvatar = async () => {
+    if (!avatarFile && !avatarRemoved) return closeAvatarEditor();
+    setAvatarSaving(true);
+    try {
+      if (avatarRemoved) {
+        await updateProfile({ avatarUrl: null });
+      } else {
+        const edited = await createEditedAvatar(avatarFile, avatarPreview, avatarZoom);
+        const uploaded = await authApi.uploadFile(edited);
+        await updateProfile({ avatarUrl: uploaded.url }); // refreshes user from the server
+      }
+      setToast(avatarRemoved ? 'Profile photo removed.' : 'Profile photo updated.');
+      closeAvatarEditor();
+    } catch (err) {
+      setToast(err.message || 'Unable to save your profile photo.');
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+  const editorImage = avatarRemoved ? null : avatarPreview || (!savedAvatarBroken && savedAvatar);
 
   const savedCover = resolveAssetUrl(user?.cover) || null;
   const coverSrc = coverPreview || savedCover || defaultCover;
@@ -182,6 +266,22 @@ export default function Profile() {
         <div className="profile-hero-person">
           <div className="profile-avatar-wrap">
             <Avatar name={user?.name || 'Employee'} initials={user?.initials} size="xxl" src={user?.avatar}/>
+            <button
+              type="button"
+              className="avatar-upload-button"
+              title="Change profile photo"
+              aria-label="Change profile photo"
+              onClick={() => setAvatarEditorOpen(true)}
+            >
+              <Camera size={14}/>
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="cover-file-input"
+              onChange={onAvatarFileSelected}
+            />
           </div>
           <div className="profile-hero-info">
             <div className="profile-name-row">
@@ -198,6 +298,53 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      <Modal
+        open={avatarEditorOpen}
+        onClose={closeAvatarEditor}
+        title="Profile photo"
+        description="Upload a photo, zoom to frame it, then save."
+        className="avatar-editor-dialog"
+        hideClose
+      >
+        <button type="button" className="avatar-editor-close" aria-label="Close" onClick={closeAvatarEditor}><X size={18}/></button>
+        <div className="avatar-editor">
+          <div className="avatar-editor-frame">
+            {editorImage ? (
+              <img
+                src={editorImage}
+                alt="Profile photo preview"
+                style={{ transform: `scale(${avatarZoom})` }}
+                onError={() => { if (!avatarPreview) setSavedAvatarBroken(true); }}
+              />
+            ) : (
+              <Avatar name={user?.name || 'Employee'} initials={user?.initials} size="xxl" color="blue" />
+            )}
+          </div>
+
+          <div className={`avatar-zoom-control ${avatarPreview ? '' : 'is-disabled'}`}>
+            <button type="button" aria-label="Zoom out" disabled={!avatarPreview} onClick={() => setAvatarZoom((value) => Math.max(1, +(value - 0.1).toFixed(1)))}><Minus size={16}/></button>
+            <input aria-label="Zoom" type="range" min="1" max="3" step="0.1" value={avatarZoom} disabled={!avatarPreview} onChange={(event) => setAvatarZoom(Number(event.target.value))}/>
+            <button type="button" aria-label="Zoom in" disabled={!avatarPreview} onClick={() => setAvatarZoom((value) => Math.min(3, +(value + 0.1).toFixed(1)))}><Plus size={16}/></button>
+          </div>
+
+          <div className="avatar-editor-tools">
+            <Button type="button" variant="secondary" size="sm" onClick={() => avatarInputRef.current && avatarInputRef.current.click()}>
+              <Upload size={14}/> {savedAvatar || avatarPreview ? 'Choose another photo' : 'Upload photo'}
+            </Button>
+            {(savedAvatar || avatarPreview) && !avatarRemoved && (
+              <Button type="button" variant="secondary" size="sm" className="avatar-remove-button" onClick={() => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); setAvatarPreview(null); setAvatarFile(null); setAvatarZoom(1); setAvatarRemoved(true); }}>
+                <Trash2 size={14}/> Remove photo
+              </Button>
+            )}
+          </div>
+          {avatarRemoved && <p className="avatar-editor-note">Your photo will be removed and your initials shown instead.</p>}
+        </div>
+        <div className="avatar-editor-actions">
+          <Button type="button" variant="secondary" onClick={closeAvatarEditor} disabled={avatarSaving}>Cancel</Button>
+          <Button type="button" onClick={saveAvatar} disabled={avatarSaving || (!avatarFile && !avatarRemoved)}>{avatarSaving ? 'Saving…' : 'Save'}</Button>
+        </div>
+      </Modal>
 
       <div className="profile-content-grid">
         <div className="profile-main-column">

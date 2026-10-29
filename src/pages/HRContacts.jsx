@@ -1,8 +1,18 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpRight, AtSign, Building2, ChevronDown, Mail, MapPin, Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Building2, Check, ChevronDown, Copy, Mail, MapPin, Search, Users } from 'lucide-react';
 import useClickOutside from '../hooks/useClickOutside';
-import { Avatar, PageTitle, Panel, Tag } from '../components/common/UI';
+import { Avatar, PageTitle, Panel } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
+
+// Simple Microsoft Teams mark (purple tile with a "T") for the chat button.
+function TeamsLogo() {
+  return (
+    <svg className="qc-teams-logo" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <rect width="16" height="16" rx="3.5" fill="#5059C9"/>
+      <path d="M4.5 4.75h7v1.6H8.85v5.9h-1.7v-5.9H4.5z" fill="#fff"/>
+    </svg>
+  );
+}
 
 const buildTeamsChatUrl = (email) => (
   email
@@ -63,144 +73,131 @@ export default function HRContacts() {
     (team === 'All' || item.team === team)
   );
 
+  const [copiedEmail, setCopiedEmail] = useState(null);
+  const copyEmail = async (email) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setCopiedEmail(email);
+      window.setTimeout(() => setCopiedEmail((current) => (current === email ? null : current)), 1600);
+    } catch {
+      setToast('Unable to copy the email address.');
+    }
+  };
+  const isCurrentUser = (contact) => contact.id === currentUserContact?.id;
+  const ready = !contactsState.loading && !contactsState.error;
+
   return (
     <>
       <PageTitle
-        eyebrow="THE PEOPLE BEHIND THE HELP"
+        eyebrow="PEOPLE & CULTURE"
         title="Quick Connect"
-        description="Dedicated People Partners and HR Specialists ready to assist with benefits, career development, leave and operations."
+        description="Reach the right HR partner for benefits, leave, career development and workplace operations."
       />
 
-      {contactsState.loading && (
-        <Panel><p className="muted">Loading HR contacts…</p></Panel>
-      )}
-      {contactsState.error && (
-        <Panel><p className="muted">Unable to load HR contacts: {contactsState.error}</p></Panel>
-      )}
-      {!contactsState.loading && !contactsState.error && validContacts.length === 0 && (
-        <Panel><p className="muted">No HR contacts found in the employee directory.</p></Panel>
-      )}
-
-      <div className="contacts-hero">
-        <div className="contacts-hero-copy">
-          <Tag tone="purple">PEOPLE & CULTURE DIRECTORY</Tag>
-          <h2>A real conversation makes all the difference.</h2>
-          <p>
-            Connect directly with your dedicated HR points of contact for confidential support, benefits advisement, and internal transfers.
-          </p>
-          <div className="contacts-hero-stats">
-            <span><strong>{validContacts.length.toString().padStart(2,'0')}</strong> verified HR specialists</span>
-            <span><strong>{teams.length - 1}</strong> departments represented</span>
-          </div>
-        </div>
-      </div>
-
-      <Panel className={`contacts-filter-panel ${departmentOpen ? 'is-department-open' : ''}`}>
-        <div className="contacts-filter-heading">
-          <div>
-            <span className="contacts-filter-kicker">Find your HR partner</span>
-            <h2>Browse the directory</h2>
-          </div>
-          <span className="contacts-filter-count">{filtered.length} of {validContacts.length} contacts</span>
-        </div>
-        <div className="contacts-toolbar">
-          <label className="inline-search contacts-search">
-            <Search size={16}/>
-            <span className="sr-only">Search HR contacts</span>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, team or specialty..."/>
-          </label>
-          <div className="contacts-department-filter">
-            <span className="contacts-department-label"><Building2 size={15}/> Department</span>
-            <div ref={departmentRef} className={`contacts-select-wrap is-menu-${menuPlacement}`}>
-              <button
-                type="button"
-                className={`contacts-select-trigger ${departmentOpen ? 'is-open' : ''}`}
-                aria-haspopup="listbox"
-                aria-expanded={departmentOpen}
-                aria-label="Filter by department"
-                onClick={() => setDepartmentOpen((isOpen) => !isOpen)}
-              >
-                <span>{team}</span>
-                <ChevronDown size={16}/>
-              </button>
-              {departmentOpen && (
-                <div className="contacts-select-menu" role="listbox" aria-label="Departments">
-                  {teams.map((item) => (
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={team === item}
-                      className={`contacts-select-option ${team === item ? 'is-selected' : ''}`}
-                      key={item}
-                      onClick={() => { setTeam(item); setDepartmentOpen(false); }}
-                    >
-                      <span>{item}</span>
-                      {team === item && <span className="contacts-select-check">✓</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
+      <Panel className={`qc-toolbar ${departmentOpen ? 'is-department-open' : ''}`}>
+        <label className="inline-search qc-search">
+          <Search size={16}/>
+          <span className="sr-only">Search HR contacts</span>
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name, role, department or email"/>
+        </label>
+        <div ref={departmentRef} className={`contacts-select-wrap qc-department is-menu-${menuPlacement}`}>
+          <button
+            type="button"
+            className={`contacts-select-trigger ${departmentOpen ? 'is-open' : ''}`}
+            aria-haspopup="listbox"
+            aria-expanded={departmentOpen}
+            aria-label="Filter by department"
+            onClick={() => setDepartmentOpen((isOpen) => !isOpen)}
+          >
+            <span className="qc-department-value"><Building2 size={15}/> {team === 'All' ? 'All departments' : team}</span>
+            <ChevronDown size={16}/>
+          </button>
+          {departmentOpen && (
+            <div className="contacts-select-menu" role="listbox" aria-label="Departments">
+              {teams.map((item) => (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={team === item}
+                  className={`contacts-select-option ${team === item ? 'is-selected' : ''}`}
+                  key={item}
+                  onClick={() => { setTeam(item); setDepartmentOpen(false); }}
+                >
+                  <span>{item === 'All' ? 'All departments' : item}</span>
+                  {team === item && <span className="contacts-select-check">✓</span>}
+                </button>
+              ))}
             </div>
-          </div>
+          )}
         </div>
+        <span className="qc-count"><Users size={15}/> {filtered.length} of {validContacts.length} contacts · {teams.length - 1} {teams.length - 1 === 1 ? 'department' : 'departments'}</span>
       </Panel>
 
-      <div className="contacts-grid">
-        {filtered.map((contact) => (
-          <Panel className="contact-card" key={contact.id}>
-            <div className="contact-card-cover">
-              {contact.cover && (
-                <img src={contact.cover} alt={contact.name} className="contact-cover-img" loading="lazy" />
-              )}
-              <div className="contact-cover-overlay" />
-              <span className="contact-team-label">{contact.team}</span>
-              <div className="contact-avatar-overlap">
-                <Avatar name={contact.name} initials={contact.initials} size="xl" src={contact.avatar}/>
-              </div>
-            </div>
+      {contactsState.loading && <Panel className="qc-state"><p className="muted">Loading HR contacts…</p></Panel>}
+      {contactsState.error && <Panel className="qc-state"><p className="muted">Unable to load HR contacts: {contactsState.error}</p></Panel>}
 
-            <div className="contact-card-body">
-              <h3>{contact.name}</h3>
-              {contact.role && <p className="contact-role">{contact.role}</p>}
-              <p className="contact-focus">{contact.focus}</p>
-              {contact.location && (
-                <div className="contact-detail-row">
-                  <MapPin size={14}/> {contact.location}
+      {ready && (
+        <div className="qc-grid">
+          {filtered.map((contact) => (
+            <article className="qc-card" key={contact.id}>
+              <header className="qc-card-head">
+                <Avatar name={contact.name} initials={contact.initials} color={contact.color || 'blue'} size="lg" src={contact.avatar}/>
+                <div className="qc-identity">
+                  <h3>
+                    {contact.name}
+                    {isCurrentUser(contact) && <span className="qc-you">You</span>}
+                  </h3>
+                  {contact.role && <p className="qc-role">{contact.role}</p>}
+                  <span className="qc-team">{contact.team}</span>
+                </div>
+              </header>
+
+              <dl className="qc-details">
+                {contact.location && (
+                  <div><dt><MapPin size={14}/><span className="sr-only">Location</span></dt><dd>{contact.location}</dd></div>
+                )}
+                <div>
+                  <dt><Mail size={14}/><span className="sr-only">Email</span></dt>
+                  <dd className="qc-email">
+                    {contact.email ? (
+                      <>
+                        <span title={contact.email}>{contact.email}</span>
+                        <button
+                          type="button"
+                          className="qc-copy"
+                          aria-label={`Copy ${contact.name}'s email`}
+                          title={copiedEmail === contact.email ? 'Copied' : 'Copy email'}
+                          onClick={() => copyEmail(contact.email)}
+                        >
+                          {copiedEmail === contact.email ? <Check size={14}/> : <Copy size={14}/>}
+                        </button>
+                      </>
+                    ) : 'No email on file'}
+                  </dd>
+                </div>
+              </dl>
+
+              {contact.email && !isCurrentUser(contact) && (
+                <div className="qc-actions">
+                  <a className="btn btn-primary btn-sm" href={`mailto:${contact.email}`}>
+                    <Mail size={14}/> Email
+                  </a>
+                  <a className="btn btn-secondary btn-sm" href={buildTeamsChatUrl(contact.email)} aria-label={`Chat with ${contact.name} on Teams`}>
+                    <TeamsLogo/> Teams chat
+                  </a>
                 </div>
               )}
-              <div className="contact-detail-row">
-                <AtSign size={14}/> {contact.email || 'No email on file'}
-              </div>
-              <div className="contact-card-actions">
-                {contact.email && (
-                  <a
-                    className="btn btn-secondary btn-sm"
-                    href={`mailto:${contact.email}`}
-                  >
-                    <Mail size={14}/> Email Partner
-                  </a>
-                )}
-                {contact.email && (
-                  <a
-                    className="btn btn-ghost btn-sm"
-                    href={buildTeamsChatUrl(contact.email)}
-                    aria-label={`Open Teams chat with ${contact.name}`}
-                  >
-                    Schedule chat <ArrowUpRight size={14}/>
-                  </a>
-                )}
-              </div>
-            </div>
-          </Panel>
-        ))}
-        {filtered.length === 0 && (
-          <Panel className="contact-empty">
-            <Search size={22}/>
-            <strong>No contacts found</strong>
-            <p>Try searching another name or department.</p>
-          </Panel>
-        )}
-      </div>
+            </article>
+          ))}
+          {filtered.length === 0 && (
+            <Panel className="qc-empty">
+              <Search size={22}/>
+              <strong>{validContacts.length === 0 ? 'No HR contacts yet' : 'No contacts found'}</strong>
+              <p>{validContacts.length === 0 ? 'No HR contacts were found in the employee directory.' : 'Try another name or department.'}</p>
+            </Panel>
+          )}
+        </div>
+      )}
     </>
   );
 }

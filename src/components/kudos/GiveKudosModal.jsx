@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Heart, Send } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import EmployeePicker from '../common/EmployeePicker';
-import { Button, FormField, Modal } from '../common/UI';
+import { Button, FormField, Modal, Select } from '../common/UI';
 
 const CATEGORIES = ['Teamwork', 'Ownership', 'Customer focus', 'Curiosity', 'Kindness', 'Creative thinking'];
 
@@ -69,9 +69,7 @@ export default function GiveKudosModal({ open, onClose }) {
         />
 
         <FormField label="Recognition theme">
-          <select value={category} onChange={(event) => setCategory(event.target.value)}>
-            {CATEGORIES.map((item) => <option key={item}>{item}</option>)}
-          </select>
+          <Select ariaLabel="Recognition theme" value={category} onChange={setCategory} options={CATEGORIES} />
         </FormField>
 
         <FormField label="Your message">

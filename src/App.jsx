@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import { useApp } from './context/AppContext';
@@ -33,21 +33,11 @@ function LoadingFallback() {
   return <Panel><p className="muted">Loading page…</p></Panel>;
 }
 
-function HROrbitLoginRedirect() {
-  useEffect(() => {
-    localStorage.removeItem('hrobit-auth-token');
-    localStorage.removeItem('hrobit-auth-user');
-    window.location.assign('https://hrorbit.simplify3x.com/login');
-  }, []);
-
-  return <LoadingFallback />;
-}
-
 export default function App() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        <Route path="/login" element={<HROrbitLoginRedirect />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Login mode="register" />} />
 
         <Route element={<AppLayout />}>
