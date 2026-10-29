@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Search, Plus, ArrowUpRight, Sparkles } from 'lucide-react';
+import { ArrowLeft, Search, Plus, ArrowUpRight, Sparkles } from 'lucide-react';
 
 export function PageTitle({ eyebrow, title, description, actions }) {
   return (
@@ -81,10 +81,17 @@ export function EmptyState({ icon: Icon = Search, title = 'Nothing here yet', de
   );
 }
 
-export function Modal({ open, onClose, title, description, children, wide = false, className = '' }) {
+export function Modal({ open, onClose, title, description, children, wide = false, className = '', headerActions = null, closeOnLeft = false, hideClose = false }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [open]);
+
   if (!open) return null;
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
+    <div className={`modal-backdrop ${className.includes('event-fullscreen-modal') ? 'event-fullscreen-backdrop' : className.includes('draft-list-fullscreen') ? 'draft-list-fullscreen-backdrop' : ''}`.trim()} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
       <motion.div
         className={`modal ${wide ? 'modal-wide' : ''} ${className}`.trim()}
         role="dialog"
@@ -94,14 +101,15 @@ export function Modal({ open, onClose, title, description, children, wide = fals
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: .18 }}
       >
-        <div className="modal-header">
-          <div>
+        <div className={`modal-header ${closeOnLeft ? 'modal-header-close-left' : ''} ${hideClose ? 'modal-header-no-close' : ''}`}>
+          {!hideClose && <button className="icon-button modal-close-button" aria-label="Close" title="Close" onClick={onClose}>
+            <ArrowLeft size={19} />
+          </button>}
+          <div className="modal-header-copy">
             <h2>{title}</h2>
             {description && <p>{description}</p>}
           </div>
-          <button className="icon-button" aria-label="Close dialog" onClick={onClose}>
-            <X size={19} />
-          </button>
+          {headerActions || <span className="modal-header-spacer" aria-hidden="true" />}
         </div>
         {children}
       </motion.div>
@@ -132,10 +140,10 @@ export function AccentIcon({ icon: Icon = Sparkles, tone = 'mint' }) {
   return <span className={`accent-icon accent-${tone}`}><Icon size={19} /></span>;
 }
 
-export function FormField({ label, children, hint }) {
+export function FormField({ label, children, hint, required = false }) {
   return (
     <label className="form-field">
-      <span>{label}</span>
+      <span>{label}{required && <b className="required-mark" aria-hidden="true">*</b>}</span>
       {children}
       {hint && <small>{hint}</small>}
     </label>

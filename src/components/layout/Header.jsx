@@ -220,9 +220,16 @@ export default function Header({ pageTitle, onMenuClick }) {
   return (
     <>
       <header className="topbar">
-      
+        <button
+          type="button"
+          className="icon-button mobile-menu"
+          aria-label="Open navigation menu"
+          onClick={onMenuClick}
+        >
+          <Menu size={20} />
+        </button>
 
-      <Link to="/" className="topbar-brand">
+      <Link to="/" className="topbar-brand pading-left-10">
         <span className="topbar-brand-mark"><Activity size={21} strokeWidth={2.6} /></span>
         <span className="topbar-brand-name">HROrbit</span>
       </Link>
@@ -242,7 +249,6 @@ export default function Header({ pageTitle, onMenuClick }) {
               if (event.key === 'Enter' && results[0]) goResult(results[0].to);
             }}
           />
-          <kbd><Command size={10} /> K</kbd>
           {searchOpen && (
             <>
               <button className="search-dismiss" aria-label="Close search" onClick={() => { setSearchOpen(false); setSearch(''); }}>
@@ -465,7 +471,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                   setLogoutConfirmOpen(true);
                 }}
               >
-                <LogOut size={14} /> Logout
+                Logout <LogOut size={14} />
               </button>
             </div>
           )}
@@ -478,6 +484,8 @@ export default function Header({ pageTitle, onMenuClick }) {
         onClose={() => setLogoutConfirmOpen(false)}
         title="Log out?"
         description="Are you sure you want to log out of HROrbit?"
+        className="logout-confirm-modal"
+        hideClose
       >
         <div className="modal-actions">
           <Button variant="secondary" onClick={() => setLogoutConfirmOpen(false)}>

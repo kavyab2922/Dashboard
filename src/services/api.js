@@ -135,6 +135,10 @@ export const authApi = {
     return get('/auth/me');
   },
 
+  profile() {
+    return get('/profile');
+  },
+
   updateProfile(changes) {
     return put('/profile', changes);
   },

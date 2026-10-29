@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { BadgeCheck, CalendarDays, Camera, Check, Edit3, Mail, MapPin, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Avatar, Button, FormField, Modal, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
-import { authApi, dataApi, getToken, resolveAssetUrl } from '../services/api';
+import { authApi, resolveAssetUrl } from '../services/api';
 import { formatDate } from '../utils/format';
 import defaultCover from '../assets/default-cover.svg';
 
@@ -35,7 +35,7 @@ function computeAnniversary(joinedDate) {
 }
 
 export default function Profile() {
-  const { user, userLoading, sessionVersion, updateProfile, setToast } = useApp();
+  const { user, userLoading, updateProfile, setToast } = useApp();
   const [editOpen, setEditOpen] = useState(false);
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
@@ -45,22 +45,6 @@ export default function Profile() {
   const [coverPreview, setCoverPreview] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
   const [coverSaving, setCoverSaving] = useState(false);
-
-  const [summary, setSummary] = useState(null);
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    const requestToken = getToken();
-    setSummaryLoading(true);
-    setSummaryError('');
-    dataApi.dashboard.summary()
-      .then((response) => { if (!cancelled && requestToken === getToken()) setSummary(response.data || null); })
-      .catch((err) => { if (!cancelled && requestToken === getToken()) setSummaryError(err.message || 'Unable to load profile summary.'); })
-      .finally(() => { if (!cancelled && requestToken === getToken()) setSummaryLoading(false); });
-    return () => { cancelled = true; };
-  }, [sessionVersion]);
 
   const savedCover = resolveAssetUrl(user?.cover) || null;
   const coverSrc = coverPreview || savedCover || defaultCover;
@@ -289,16 +273,16 @@ export default function Profile() {
             <h3>Excellence in practice.</h3>
             <p>Your performance milestones and kudos recorded so far.</p>
             <div className="growth-metric">
-              <span><strong>{summaryLoading ? '…' : '—'}</strong><small>Milestones Unlocked (not tracked yet)</small></span>
+              <span><strong>—</strong><small>Milestones Unlocked (not tracked yet)</small></span>
               <div className="growth-meter"><i style={{width:'0%'}}/></div>
             </div>
             <div className="growth-metric">
               <span>
-                <strong>{summaryLoading ? '…' : summaryError ? '—' : (summary?.kudosReceived?.value ?? '—')}</strong>
-                <small>{summaryError ? 'Summary unavailable' : 'Kudos Received'}</small>
+                <strong>—</strong>
+                <small>Kudos Received</small>
               </span>
               <div className="growth-meter purple">
-                <i style={{width: summary?.kudosReceived?.value ? '100%' : '0%'}}/>
+                <i style={{width: '0%'}}/>
               </div>
             </div>
           </Panel>

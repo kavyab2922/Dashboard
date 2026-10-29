@@ -18,6 +18,18 @@ export function isSameMonthDay(dateString, date = new Date()) {
   return parsed.getMonth() === date.getMonth() && parsed.getDate() === date.getDate();
 }
 
+const DEFAULT_EVENT_IMAGES = {
+  Company: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=85',
+  Community: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1200&q=85',
+  Learning: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1200&q=85',
+  Wellbeing: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=1200&q=85',
+  Holiday: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=85',
+};
+
+export function getEventImage(event) {
+  return event?.image || DEFAULT_EVENT_IMAGES[event?.category] || DEFAULT_EVENT_IMAGES.Company;
+}
+
 export function safeOpen(url) {
   if (!url || url.startsWith('#placeholder-')) return false;
   if (url.startsWith('/')) return false;

@@ -139,6 +139,7 @@ export default function Announcements() {
         title={selected?.title || 'Announcement'}
         description={selected ? `${selected.category} · ${formatDate(selected.date, {month:'long',day:'numeric',year:'numeric'})}` : ''}
         wide
+        className="announcement-detail-modal"
       >
         <div className="announcement-detail">
           {selected?.image && (
