@@ -63,12 +63,11 @@ export const APP_TOPICS = [
     steps: [
       'The bell icon at the top right shows your unread notification count.',
       'Click it to open the list; choosing a notification marks it read and opens its announcement, event or kudos page.',
-      'Use Mark all read inside the panel to clear the badge at once.',
     ],
     note: 'The same top bar holds the colour palette, the light/dark theme toggle and your profile menu.',
     keywords: [
       ['notification', 3], ['notifications', 3], ['bell', 3], ['unread', 3], ['alerts', 2],
-      ['mark all read', 4], ['badge', 2],
+      ['badge', 2],
     ],
     samples: ['Where do I see my notifications?', 'How do I clear the notification badge?'],
   },

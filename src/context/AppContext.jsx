@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { authApi, dataApi, getToken } from '../services/api';
 import { normalizeUser } from '../utils/user';
 
@@ -20,6 +20,7 @@ function useCollection(loader, enabled = true, sessionVersion = 0) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState('');
+  const requestSequence = useRef(0);
 
   const refresh = useCallback(async () => {
     if (!enabled) {
@@ -29,16 +30,17 @@ function useCollection(loader, enabled = true, sessionVersion = 0) {
       return [];
     }
     const requestToken = getToken();
+    const requestId = ++requestSequence.current;
     setLoading(true);
     try {
       const payload = await loader();
-      if (requestToken !== getToken()) return [];
+      if (requestId !== requestSequence.current || requestToken !== getToken()) return [];
       const data = Array.isArray(payload?.data) ? payload.data : [];
       setItems(data);
       setError('');
       return data;
     } catch (err) {
-      if (requestToken !== getToken()) return [];
+      if (requestId !== requestSequence.current || requestToken !== getToken()) return [];
       if (err?.status === 401 || err?.status === 404) {
         setError('Your session has ended. Please sign in again.');
       } else {
@@ -46,7 +48,7 @@ function useCollection(loader, enabled = true, sessionVersion = 0) {
       }
       return [];
     } finally {
-      if (requestToken === getToken()) setLoading(false);
+      if (requestId === requestSequence.current && requestToken === getToken()) setLoading(false);
     }
   }, [loader, enabled]);
 
@@ -174,6 +176,24 @@ export function AppProvider({ children }) {
   const contacts = useCollection(contactsLoader, enabled, sessionVersion);
   const kudos = useCollection(kudosLoader, enabled, sessionVersion);
   const notifications = useCollection(notificationsLoader, enabled, sessionVersion);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+
+    const refreshNotifications = () => {
+      if (document.visibilityState === 'visible') notifications.refresh();
+    };
+    const interval = window.setInterval(refreshNotifications, 30000);
+    window.addEventListener('focus', refreshNotifications);
+    document.addEventListener('visibilitychange', refreshNotifications);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshNotifications);
+      document.removeEventListener('visibilitychange', refreshNotifications);
+    };
+  }, [enabled, notifications.refresh]);
+
   const courses = useCollection(coursesLoader, enabled, sessionVersion);
   const faqs = useCollection(faqsLoader, enabled, sessionVersion);
   const games = useCollection(gamesLoader, enabled, sessionVersion);
@@ -215,8 +235,8 @@ export function AppProvider({ children }) {
     await notifications.refresh();
   }, [notifications.refresh]);
 
-  const markAllNotificationsRead = useCallback(async () => {
-    await dataApi.notifications.markAllRead();
+  const markAllNotificationsRead = useCallback(async (notificationIds = []) => {
+    await dataApi.notifications.markAllRead(notificationIds);
     await notifications.refresh();
   }, [notifications.refresh]);
 

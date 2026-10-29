@@ -367,7 +367,11 @@ export default function GamePlay() {
                   <strong>{completion?.stats?.currentStreak ?? initialStats?.currentStreak ?? '—'}</strong>
                   <span>day streak</span>
                 </div>
-                
+                <div className="game-complete-stat">
+                  <Trophy size={17} aria-hidden="true" />
+                  <strong>{best?.score ?? summary?.score ?? '—'}</strong>
+                  <span>personal best</span>
+                </div>
               </div>
 
               {duplicateCompletion && (
