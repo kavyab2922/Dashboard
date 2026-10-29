@@ -1,49 +1,311 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, Flame, Gamepad2, Grid2X2, Lightbulb, RotateCcw, Sparkles, Trophy, XCircle } from 'lucide-react';
-import { useApp } from '../context/AppContext';
-import { Button, PageTitle, Panel, Tag } from '../components/common/UI';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Award, CheckCircle2, Clock, Flame, Gauge, Play, Sparkles, Star, Trophy, X,
+} from 'lucide-react';
+import { dataApi } from '../services/api';
+import { EmptyState, PageTitle, Panel, PanelHeading } from '../components/common/UI';
+import { GameIcon, GAME_TONES } from '../components/games/common';
+import GameIconRain from '../components/games/GameIconRain';
+import { ChampionsPodium } from '../components/games/Leaderboard';
 
-const rounds = [
-  { clues: ['Orbit', 'Launch', 'Astronaut', 'Gravity'], answer: 'Space', choices: ['Space','Ocean','Garden','Music'], explanation: 'Orbit, launch, astronaut and gravity all connect to space exploration.' },
-  { clues: ['Canvas', 'Palette', 'Brush', 'Gallery'], answer: 'Art', choices: ['Art','Cooking','Fitness','Travel'], explanation: 'Canvas, palette, brush and gallery are all closely related to art.' },
-  { clues: ['Kernel', 'Terminal', 'Shell', 'Directory'], answer: 'Computing', choices: ['Weather','Computing','Fashion','Theatre'], explanation: 'Kernel, terminal, shell and directory are common computing concepts.' },
+const FILTERS = [
+  { id: 'all', label: 'All Games' },
+  { id: 'not_played', label: 'Not started' },
+  { id: 'in_progress', label: 'In Progress' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'failed_validation', label: 'Needs retry' },
+  { id: 'favorites', label: 'Favorites' },
 ];
-const gridSolution = [1,3,0,2];
 
-function WordConnections() {
-  const [roundIndex, setRoundIndex] = useState(0);
-  const [selected, setSelected] = useState('');
-  const [complete, setComplete] = useState(false);
-  const [score, setScore] = useState(0);
-  const round = rounds[roundIndex % rounds.length];
-  const choose = (choice) => { if (complete) return; setSelected(choice); setComplete(true); if (choice === round.answer) setScore((value) => value + 1); };
-  const next = () => { setRoundIndex((value) => (value + 1) % rounds.length); setSelected(''); setComplete(false); };
-  return <div className="game-play-layout"><div className="game-play-intro"><span className="game-play-step">ROUND {(roundIndex % rounds.length) + 1} OF {rounds.length}</span><h2>What connects these clues?</h2><p>Find the idea that ties all four words together. Trust your first instinct.</p><div className="word-clue-grid">{round.clues.map((clue, index) => <div className={`word-clue clue-${index}`} key={clue}><span>{String(index + 1).padStart(2,'0')}</span><strong>{clue}</strong></div>)}</div><div className="word-answer-grid">{round.choices.map((choice) => <button key={choice} className={`word-answer ${selected === choice ? (choice === round.answer ? 'correct' : 'incorrect') : ''}`} disabled={complete} onClick={() => choose(choice)}><span className="answer-letter">{String.fromCharCode(65 + round.choices.indexOf(choice))}</span>{choice}{selected === choice && (choice === round.answer ? <CheckCircle2 size={17}/> : <XCircle size={17}/>)}</button>)}</div>{complete && <div className={`game-feedback ${selected === round.answer ? 'feedback-correct' : 'feedback-incorrect'}`}>{selected === round.answer ? <CheckCircle2 size={18}/> : <Lightbulb size={18}/>}<div><strong>{selected === round.answer ? 'Nicely connected!' : `The connection was ${round.answer}.`}</strong><p>{round.explanation}</p></div></div>}<div className="game-play-actions"><span className="game-score"><Trophy size={15}/> Score: {score}</span>{complete && <Button onClick={next}>Next round <ArrowRight size={15}/></Button>}</div></div><aside className="game-rules-card"><span className="rules-icon"><CircleHelp size={19}/></span><h3>How to play</h3><ol><li>Read all four clue words.</li><li>Choose one answer that connects the clues.</li><li>Find out if your connection is right.</li><li>Try all three short rounds.</li></ol><div className="rules-bottom"><Sparkles size={15}/><span>No timer. Just a little brain break.</span></div></aside></div>;
+const STATUS_LABEL = {
+  completed: 'Completed',
+  in_progress: 'In progress',
+  not_played: 'Not started',
+  failed_validation: 'Needs retry',
+};
+
+const FAVORITES_KEY = 'hrobit-daily-game-favorites';
+
+function readFavorites() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
 }
 
-function OrbitGrid() {
-  const [placements, setPlacements] = useState({});
-  const [checked, setChecked] = useState(false);
-  const [hint, setHint] = useState(false);
-  const [won, setWon] = useState(false);
-  const choose = (row, col) => { setChecked(false); setWon(false); setPlacements((current) => { const next = {...current}; if (next[row] === col) delete next[row]; else next[row] = col; return next; }); };
-  const validate = () => { const values = Object.values(placements); const valid = Object.keys(placements).length === 4 && new Set(values).size === 4 && [0,1,2,3].every((row) => placements[row] === gridSolution[row]); setChecked(true); setWon(valid); };
-  const reset = () => { setPlacements({}); setChecked(false); setHint(false); setWon(false); };
-  return <div className="game-play-layout"><div className="grid-game-main"><span className="game-play-step">LOGIC CHALLENGE · 4 × 4</span><h2>Place one star in each row and column.</h2><p>Tap a cell to place a star. Each row can hold one star, and no two stars can share a column.</p><div className="orbit-grid-board">{Array.from({length:16},(_,index) => { const row = Math.floor(index / 4); const col = index % 4; const active = placements[row] === col; const wrongColumn = checked && active && placements[row] !== gridSolution[row]; return <button key={index} aria-label={`Row ${row+1}, column ${col+1}${active ? ', star placed' : ''}`} className={`orbit-grid-cell ${active ? 'has-star' : ''} ${(row+col)%2 === 0 ? 'cell-light' : 'cell-dark'} ${wrongColumn ? 'cell-wrong' : ''}`} onClick={() => choose(row,col)}>{active ? <span>✦</span> : <i/>}</button>; })}</div>{checked && <div className={`game-feedback ${won ? 'feedback-correct' : 'feedback-incorrect'}`}>{won ? <CheckCircle2 size={18}/> : <Lightbulb size={18}/>}<div><strong>{won ? 'Grid solved!' : 'Not quite there yet.'}</strong><p>{won ? 'You placed one star in each row and column. Nice focus!' : 'Check that you have four stars, one in each row, with no repeated columns. Hint: the correct columns for rows 1–4 are 2, 4, 1, 3.'}</p></div></div>}<div className="game-play-actions"><span className="game-score"><Sparkles size={15}/> {Object.keys(placements).length}/4 stars placed</span><div><Button variant="ghost" onClick={() => setHint(!hint)}>{hint ? 'Hide hint' : 'Need a hint?'}</Button><Button variant="secondary" onClick={reset}><RotateCcw size={15}/> Reset</Button><Button onClick={validate}>Check grid <CheckCircle2 size={15}/></Button></div></div>{hint && <div className="hint-strip"><Lightbulb size={15}/> Try a different column in each row. Your placements are saved as you play.</div>}</div><aside className="game-rules-card"><span className="rules-icon"><Grid2X2 size={19}/></span><h3>Grid rules</h3><ol><li>Fill all four rows.</li><li>Place exactly one star in every row.</li><li>Stars must use different columns.</li><li>Press Check grid to validate your solution.</li></ol><div className="rules-bottom"><Sparkles size={15}/><span>Take your time and think a move ahead.</span></div></aside></div>;
+function GameCard({ game, favorite, onToggleFavorite, onPlay }) {
+  const tone = GAME_TONES[game.color] || 'slate';
+  const cta = game.status === 'completed' ? 'Play again' : game.status === 'in_progress' ? 'Continue' : 'Play';
+
+  return (
+    <article className={`game-card game-card-${tone} status-${game.status}`}>
+      <div className="game-card-top">
+        <span className={`game-card-icon tone-${tone}`}><GameIcon name={game.icon} size={20} /></span>
+        <span className={`game-card-status status-${game.status}`}>
+          {game.status === 'completed' && <CheckCircle2 size={13} aria-hidden="true" />}
+          {STATUS_LABEL[game.status] || 'Not played'}
+        </span>
+        <button
+          type="button"
+          className={`game-card-fav ${favorite ? 'is-on' : ''}`}
+          aria-pressed={favorite}
+          aria-label={favorite ? `Remove ${game.title} from favorites` : `Add ${game.title} to favorites`}
+          onClick={() => onToggleFavorite(game.id)}
+        >
+          <Star size={15} fill={favorite ? 'currentColor' : 'none'} aria-hidden="true" />
+        </button>
+      </div>
+
+      <h3>{game.title}</h3>
+      <p className="game-card-desc">{game.description}</p>
+
+      <ul className="game-card-meta">
+        <li><Gauge size={13} aria-hidden="true" /> {game.difficulty}</li>
+        <li><Clock size={13} aria-hidden="true" /> {game.minutes} min</li>
+        <li><Sparkles size={13} aria-hidden="true" /> {game.points} pts</li>
+      </ul>
+
+      <div className="game-card-foot">
+        <span className="game-card-best">
+          {game.status === 'completed' && game.completion ? `Validated · ${game.completion.points ?? game.completion.score ?? '—'} pts` : 'Reward after a valid solve'}
+        </span>
+        <button type="button" className={`btn ${game.status === 'completed' ? 'btn-secondary' : 'btn-primary'}`} onClick={() => onPlay(game.id)}>
+          <Play size={14} aria-hidden="true" /> {cta}
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function HeaderStat({ icon: Icon, label, value, hint }) {
+  return (
+    <div className="games-stat">
+      <span className="games-stat-icon"><Icon size={16} aria-hidden="true" /></span>
+      <span className="games-stat-copy">
+        <strong>{value ?? '—'}</strong>
+        <small>{label}</small>
+      </span>
+      {hint && <small className="games-stat-hint">{hint}</small>}
+    </div>
+  );
+}
+
+/** Compact Top-3 Leaderboard for the gamification banner. */
+function BannerLeaderboard() {
+  const [players, setPlayers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    dataApi.dailyGames.champions('all')
+      .then((payload) => {
+        if (cancelled) return;
+        const all = (payload.data?.champions || []).slice(0, 3);
+        setPlayers(all);
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.message || 'Unable to load the leaderboard.');
+        setPlayers([]);
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="banner-leaderboard">
+        <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
+        <div className="banner-leaderboard-row banner-loader"><span className="banner-skeleton banner-skeleton-medal" /><span className="banner-skeleton banner-skeleton-name" /><span className="banner-skeleton banner-skeleton-points" /></div>
+        <div className="banner-leaderboard-row banner-loader"><span className="banner-skeleton banner-skeleton-medal" /><span className="banner-skeleton banner-skeleton-name" /><span className="banner-skeleton banner-skeleton-points" /></div>
+        <div className="banner-leaderboard-row banner-loader"><span className="banner-skeleton banner-skeleton-medal" /><span className="banner-skeleton banner-skeleton-name" /><span className="banner-skeleton banner-skeleton-points" /></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="banner-leaderboard">
+        <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
+        <div className="banner-leaderboard-empty">{error}</div>
+      </div>
+    );
+  }
+
+  if (!players.length) {
+    return (
+      <div className="banner-leaderboard">
+        <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
+        <div className="banner-leaderboard-empty">No player data yet.</div>
+      </div>
+    );
+  }
+
+  const getMedalClass = (index) => {
+    switch (index) {
+      case 0: return 'gold';
+      case 1: return 'silver';
+      case 2: return 'bronze';
+      default: return '';
+    }
+  };
+
+  return (
+    <div className="banner-leaderboard">
+      <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
+      {players.map((player, index) => {
+  const medals = ['🥇', '🥈', '🥉'];
+  const medalClasses = ['gold', 'silver', 'bronze'];
+
+  return (
+    <div
+      className={`banner-leaderboard-row ${medalClasses[index]}`}
+      key={player.employeeKey || player.name || index}
+    >
+      <span className="banner-leaderboard-medal">
+        {medals[index]}
+      </span>
+
+      <span
+        className="banner-leaderboard-name"
+        title={player.name}
+      >
+        {player.name}
+      </span>
+
+      <span className="banner-leaderboard-points">
+        {Number(player.points ?? 0).toLocaleString()} pts
+      </span>
+    </div>
+  );
+})}
+      {/* View All link would go here if a full leaderboard route exists */}
+    </div>
+  );
 }
 
 export default function Games() {
-  const { games, gamesState } = useApp();
-  const [active, setActive] = useState('word-connections');
-  const [streak, setStreak] = useState(0);
-  const playableCount = games.filter((game) => game.available).length;
+  const navigate = useNavigate();
+  const [games, setGames] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all');
+  const [period, setPeriod] = useState('all');
+  const [favorites, setFavorites] = useState(readFavorites());
+  const [celebrations, setCelebrations] = useState([]);
+  const [topChampions, setTopChampions] = useState([]);
+  const [retryToken, setRetryToken] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const [listPayload, celebrationPayload, championsPayload] = await Promise.all([
+        dataApi.dailyGames.list(),
+        dataApi.dailyGames.celebrations().catch(() => ({ data: [] })),
+        dataApi.dailyGames.champions('all').catch(() => ({ data: [] })),
+      ]);
+      setGames(listPayload.data || []);
+      setStats(listPayload.stats || null);
+      setTopChampions(championsPayload.data?.topChampions || championsPayload.data?.champions || []);
+      setCelebrations(celebrationPayload.data || []);
+    } catch (err) {
+      setError(err.message || 'Unable to load the Daily Games line-up.');
+      setGames([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!gamesState.loading && !gamesState.error && games.length > 0 && !games.some((game) => game.id === active && game.available)) {
-      const firstAvailable = games.find((game) => game.available);
-      if (firstAvailable) setActive(firstAvailable.id);
-    }
-  }, [games, gamesState.loading, gamesState.error, active]);
+    load();
+  }, [load, retryToken]);
 
-  return <><PageTitle eyebrow="A SMALL BREAK, A FRESH PERSPECTIVE" title="Daily games" description="Original, bite-sized puzzles made for a few minutes of curiosity and fun."/><div className="games-hero"><div className="games-hero-art"><div className="games-orb orb-one"/><div className="games-orb orb-two"/><div className="games-hero-symbol"><Gamepad2 size={35}/></div><span className="games-hero-spark gs-one">✦</span><span className="games-hero-spark gs-two">✧</span></div><div className="games-hero-copy"><Tag tone="purple">TODAY'S BRAIN BREAK</Tag><h2>Play a little. Think a little differently.</h2><p>Quick puzzles can be a nice way to reset between tasks. No leaderboard or pressure — just you and a new challenge.</p><div className="games-hero-stats"><span><Flame size={16}/><strong>{streak}</strong> day demo streak</span><span><Sparkles size={16}/><strong>{gamesState.loading ? '…' : playableCount}</strong> playable puzzles</span></div></div></div><div className="games-page-heading"><div><h2>Choose your challenge</h2><p>Original puzzle mechanics · no third-party game embeds</p></div><span className="games-daily-chip"><span/> DAILY PLAY</span></div>{gamesState.loading ? <Panel><p className="muted">Loading games…</p></Panel> : gamesState.error ? <Panel><p className="muted">Unable to load games: {gamesState.error}</p></Panel> : games.length === 0 ? <Panel><p className="muted">No games available yet.</p></Panel> : <div className="games-pick-grid">{games.map((game) => <button key={game.id} className={`game-pick-card ${active === game.id ? 'selected' : ''}`} onClick={() => game.available && setActive(game.id)} disabled={!game.available}><span className={`game-pick-icon ${game.color}`}>{game.id === 'orbit-grid' ? <Grid2X2 size={21}/> : game.id === 'word-connections' ? <Lightbulb size={21}/> : <Sparkles size={21}/>}</span><span className="game-pick-info"><strong>{game.title}</strong><small>{game.subtitle}</small></span><Tag tone={game.available ? (game.difficulty === 'Easy' ? 'mint' : 'purple') : 'slate'}>{game.difficulty}</Tag>{active === game.id && <span className="game-pick-selected"><CheckCircle2 size={15}/></span>}</button>)}</div>}<Panel className="game-play-panel"><div className="game-panel-top"><div><span className="game-panel-kicker"><Sparkles size={13}/> READY WHEN YOU ARE</span><h2>{active === 'orbit-grid' ? 'Orbit Grid' : 'Word Connections'}</h2></div><Tag tone="mint">Playable demo</Tag></div>{active === 'orbit-grid' ? <OrbitGrid/> : <WordConnections/>}</Panel><p className="demo-inline-note">Games are original UI prototypes. Progress and streaks are not tracked by a backend.</p></>;
+  const toggleFavorite = useCallback((gameId) => {
+    setFavorites((current) => {
+      const next = current.includes(gameId) ? current.filter((id) => id !== gameId) : [...current, gameId];
+      try {
+        localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+      } catch {
+        /* favorites stay in memory when storage is unavailable */
+      }
+      return next;
+    });
+  }, []);
+
+  const dismissCelebration = useCallback((eventKey) => {
+    dataApi.dailyGames.acknowledge(eventKey).catch(() => {});
+    setCelebrations((current) => current.filter((item) => item.eventKey !== eventKey));
+  }, []);
+
+  const visibleGames = useMemo(() => {
+    if (filter === 'favorites') return games.filter((game) => favorites.includes(game.id));
+    if (filter === 'all') return games;
+    return games.filter((game) => game.status === filter);
+  }, [favorites, filter, games]);
+
+  const hasStats = Boolean(stats);
+  const completedToday = hasStats ? Number(stats.completedToday) : null;
+  const totalGames = hasStats ? Number(stats.totalGames) : null;
+  const progress = hasStats && totalGames > 0 ? Math.min(100, Math.round((completedToday / totalGames) * 100)) : 0;
+
+  const playGame = (gameId) => navigate(`/games/${gameId}`);
+
+  return (
+    <div className="games-page">
+      <GameIconRain gameId="all" intensity="vibrant" className="games-page-rain" />
+      <PageTitle
+        eyebrow="DAILY BRAIN BREAK"
+        title="Your Daily Brain Boost"
+        description="Play. Complete challenges. Earn rewards. Build your streak!"
+      />
+
+      <section className="games-hero" aria-label="Your Daily Games statistics">
+        <div className="games-hero-copy">
+          <span className="games-hero-kicker"><Sparkles size={14} aria-hidden="true" /> HROrbit Daily Games</span>
+          <h2>Your daily brain boost</h2>
+          <p>Every completed challenge fuels your progress. Opening a game never awards points.</p>
+        </div>
+
+        <div className="games-hero-right">
+          <BannerLeaderboard />
+        </div>
+
+        <div className="games-header-stats">
+          <HeaderStat icon={Flame} label="Current streak" value={hasStats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null} hint={hasStats ? `Best ${stats.longestStreak} days` : '' } />
+          <HeaderStat icon={Trophy} label="Total points" value={hasStats ? stats.totalPoints.toLocaleString() : null} hint={hasStats ? `+${stats.todayPoints.toLocaleString()} today` : '' } />
+          <HeaderStat icon={CheckCircle2} label="Completed today" value={hasStats ? completedToday : null} hint={hasStats ? `${stats.totalCompleted} all time` : '' } />
+          <HeaderStat icon={Award} label="Levels completed" value={hasStats ? stats.levelsCompleted : null} hint="Validated levels" />
+        </div>
+      </section>
+
+      {celebrations.length > 0 && (
+        <div className="game-celebration" role="status"><Trophy size={18} aria-hidden="true" /><div><strong>{celebrations[0].title}</strong><p>{celebrations[0].message}</p></div><button type="button" className="icon-button" aria-label="Dismiss celebration" onClick={() => dismissCelebration(celebrations[0].eventKey)}><X size={16} /></button></div>
+      )}
+
+      <div className="games-section-head"><div><h2>Choose your challenge</h2><p>Four fresh challenges · validated rewards · endless levels</p></div><div className="games-filters" role="tablist" aria-label="Filter games">{FILTERS.map((option) => (<button type="button" role="tab" key={option.id} aria-selected={filter === option.id} className={`filter-chip ${filter === option.id ? 'is-active' : ''}`} onClick={() => setFilter(option.id)}>{option.label}{option.id === 'favorites' && favorites.length > 0 ? ` (${favorites.length})` : ''}</button>))}</div></div>
+
+      {loading ? (
+        <div className="games-grid" aria-hidden="true">{Array.from({ length: 4 }).map((_, index) => (<div className="game-card is-skeleton" key={index}><div className="skeleton-bar" /><div className="skeleton-bar skeleton-short" /><div className="skeleton-bar" /><div className="skeleton-bar skeleton-short" /></div>))}</div>
+      ) : error ? (
+        <Panel className="games-error"><EmptyState icon={Gauge} title="The Daily Games list is unavailable" description={error} action={<button type="button" className="btn btn-primary" onClick={() => setRetryToken((value) => value + 1)}>Try again</button>} /></Panel>
+      ) : visibleGames.length === 0 ? (
+        <Panel><EmptyState icon={Star} title={filter === 'favorites' ? 'No favorites yet' : 'Nothing in this filter'} description={filter === 'favorites' ? 'Tap the star on any game card to keep it here.' : 'Try another filter to find a puzzle to play.'} action={<button type="button" className="btn btn-secondary" onClick={() => setFilter('all')}>Show all games</button>} /></Panel>
+      ) : (
+        <div className="games-grid">{visibleGames.map((game) => (<GameCard key={game.id} game={game} favorite={favorites.includes(game.id)} onToggleFavorite={toggleFavorite} onPlay={playGame} />))}</div>
+      )}
+
+      {/* Full Leaderboard and Daily Games Champions sections removed - their UI cleaned up }}
+
+      {/* ChampionsPodium component kept for reuse, not rendered on this page */}
+    </div>
+  );
 }

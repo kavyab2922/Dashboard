@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { formatDate } from '../../utils/format';
 import { Avatar, Panel, PanelHeading, Tag } from '../common/UI';
+import ChampionsWidget from './ChampionsWidget';
 
 export function DashboardMainGrid({ summary, summaryLoading, summaryError }) {
   const {
@@ -327,7 +328,9 @@ export function DashboardMainGrid({ summary, summaryLoading, summaryError }) {
         )}
       </Panel>
 
-      {/* Row 5: Featured Achievements (6 cols) + People to Celebrate (6 cols) */}
+      {/* Row 5: Daily Games Champions (6 cols) + Featured Achievements (6 cols) */}
+      <ChampionsWidget />
+
       <Panel className="achievements-panel span-6">
         <PanelHeading
           title="Featured achievements"
