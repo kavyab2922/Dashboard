@@ -1,10 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Bell, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, CheckCheck, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity, LogOut } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Bell, Cake, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity, LogOut } from 'lucide-react';
+import { useBirthdayNotifications } from '../../hooks/useBirthdayNotifications';
+import { dataApi, resolveAssetUrl } from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import useClickOutside from '../../hooks/useClickOutside';
 import { Avatar, Button, Modal } from '../common/UI';
 import RoleSwitch from '../common/RoleSwitch';
+import BirthdayModal, { BirthdayConfettiLayer } from '../birthdays/BirthdayModal';
 
 const palettes = [
   { id: 'sapphire', label: 'Sapphire Blue', color: '#2563eb', desc: 'Enterprise Tech' },
@@ -18,8 +21,21 @@ export default function Header({ pageTitle, onMenuClick }) {
     theme, setTheme, colorTheme, setColorTheme, role,
     user,
     announcements, events, quickLinks, contacts, courses,
-    notifications, markNotificationRead, markAllNotificationsRead, setToast, endSession
+    notifications, notificationsState, markNotificationRead, markAllNotificationsRead, setToast, endSession,
+    sessionVersion,
   } = useApp();
+  const {
+    birthdaysToday,
+    loaded: birthdaysLoaded,
+    error: birthdaysError,
+    refresh: refreshBirthdays,
+  } = useBirthdayNotifications(sessionVersion);
+  const [personalBirthdayDismissed, setPersonalBirthdayDismissed] = useState(false);
+  const hasPersonalBirthday = birthdaysToday.some((birthday) => {
+    const birthdayId = birthday?.id ?? birthday?.employee_id ?? birthday?.employeeId;
+    const userId = user?.id ?? user?.employee_id ?? user?.employeeId;
+    return birthdayId != null && userId != null && String(birthdayId) === String(userId);
+  });
 
   const displayName = user?.name || 'Employee';
   const displayInitials = user?.initials || displayName.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
@@ -30,6 +46,11 @@ export default function Header({ pageTitle, onMenuClick }) {
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [birthdayReadOverrides, setBirthdayReadOverrides] = useState({});
+  const [notificationReadOverrides, setNotificationReadOverrides] = useState({});
+  const [markingReadId, setMarkingReadId] = useState(null);
+  const [markingAllRead, setMarkingAllRead] = useState(false);
+  const autoOpenedUnreadRef = useRef('');
   const navigate = useNavigate();
 
   // One ref per navbar dropdown (trigger + panel) for outside-click closing.
@@ -39,7 +60,86 @@ export default function Header({ pageTitle, onMenuClick }) {
   const profileRef = useRef(null);
   const dropdownRefs = useMemo(() => [searchRef, paletteRef, notifRef, profileRef], []);
 
-  const unread = notifications.filter((item) => !item.read).length;
+  const today = new Date();
+  const birthdayDayKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+  const birthdayNotifications = useMemo(() => birthdaysToday.map((employee, index) => {
+    const id = employee.notificationId || `birthday-${birthdayDayKey}-${employee.id ?? index}`;
+    return {
+      id,
+      type: 'birthday',
+      title: `${employee.name}'s birthday`,
+      detail: `Wish ${employee.name} a wonderful birthday today!`,
+      time: 'Today',
+      read: birthdayReadOverrides[id] ?? Boolean(employee.read),
+      employee,
+    };
+  }), [birthdaysToday, birthdayDayKey, birthdayReadOverrides]);
+  const displayedNotifications = useMemo(() => {
+    const merged = [
+      ...birthdayNotifications,
+      ...notifications.map((item) => ({
+        ...item,
+        read: notificationReadOverrides[item.id] ?? Boolean(item.read),
+      })),
+    ];
+    return Array.from(new Map(merged.map((item) => [String(item.id), item])).values());
+  }, [birthdayNotifications, notifications, notificationReadOverrides]);
+  const unread = displayedNotifications.filter((item) => !item.read).length;
+
+  useEffect(() => {
+    setBirthdayReadOverrides((current) => {
+      const validIds = new Set(birthdayNotifications.map((item) => item.id));
+      const next = Object.fromEntries(Object.entries(current).filter(([id]) => validIds.has(id)));
+      return Object.keys(next).length === Object.keys(current).length ? current : next;
+    });
+  }, [birthdayNotifications]);
+
+  useEffect(() => {
+    setNotificationReadOverrides((current) => {
+      const validIds = new Set(notifications.map((item) => String(item.id)));
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([id]) => validIds.has(String(id)))
+      );
+      return Object.keys(next).length === Object.keys(current).length ? current : next;
+    });
+  }, [notifications]);
+
+  useEffect(() => {
+    setBirthdayReadOverrides({});
+    setNotificationReadOverrides({});
+  }, [sessionVersion]);
+
+  const hasUnreadNotifications = unread > 0;
+  const unreadNotificationKey = displayedNotifications
+    .filter((item) => !item.read)
+    .map((item) => String(item.id))
+    .sort()
+    .join('|');
+
+  useEffect(() => {
+    if (!hasUnreadNotifications) {
+      autoOpenedUnreadRef.current = '';
+    }
+  }, [hasUnreadNotifications, sessionVersion]);
+
+  useEffect(() => {
+    const notificationsReady = !notificationsState.loading;
+    const birthdaysReady = birthdaysLoaded || Boolean(birthdaysError);
+    if (!notificationsReady || !birthdaysReady || !hasUnreadNotifications) return;
+    if (hasPersonalBirthday && !personalBirthdayDismissed) return;
+    if (autoOpenedUnreadRef.current === unreadNotificationKey) return;
+
+    autoOpenedUnreadRef.current = unreadNotificationKey;
+    setNotifOpen(true);
+  }, [
+    notificationsState.loading,
+    birthdaysLoaded,
+    birthdaysError,
+    hasUnreadNotifications,
+    unreadNotificationKey,
+    hasPersonalBirthday,
+    personalBirthdayDismissed,
+  ]);
 
   const results = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -58,6 +158,46 @@ export default function Header({ pageTitle, onMenuClick }) {
     navigate(to);
     setSearch('');
     setSearchOpen(false);
+  };
+
+  const markAllRead = async () => {
+    if (markingAllRead || !hasUnreadNotifications) return;
+
+    setMarkingAllRead(true);
+    const unreadBirthdayNotifications = birthdayNotifications.filter((item) => !item.read);
+    const unreadNotifications = notifications.filter((item) => !item.read);
+    const notificationIds = unreadNotifications.map((item) => item.id);
+    const birthdayEmployeeIds = unreadBirthdayNotifications
+      .map((item) => item.employee?.id)
+      .filter((id) => id != null);
+
+    try {
+      await Promise.all([
+        markAllNotificationsRead(notificationIds),
+        birthdayEmployeeIds.length
+          ? dataApi.birthdays.markAllRead(birthdayEmployeeIds)
+          : Promise.resolve(),
+      ]);
+
+      // Apply only the IDs captured when the action started. A notification
+      // created afterward remains unread and is not hidden by this action.
+      setBirthdayReadOverrides((current) => ({
+        ...current,
+        ...Object.fromEntries(unreadBirthdayNotifications.map((item) => [item.id, true])),
+      }));
+      setNotificationReadOverrides((current) => ({
+        ...current,
+        ...Object.fromEntries(unreadNotifications.map((item) => [String(item.id), true])),
+      }));
+      await refreshBirthdays();
+    } catch (err) {
+      // The server remains the source of truth after a partial or failed
+      // request; refreshes remove any stale local state rather than guessing.
+      await refreshBirthdays().catch(() => {});
+      setToast(err.message || 'Unable to mark all notifications as read.');
+    } finally {
+      setMarkingAllRead(false);
+    }
   };
 
   const closeAll = useCallback(() => {
@@ -188,39 +328,86 @@ export default function Header({ pageTitle, onMenuClick }) {
             onClick={() => { closeAll(); setNotifOpen(!notifOpen); }}
           >
             <Bell size={19} />
-            {unread > 0 && <i>{unread}</i>}
+            {hasUnreadNotifications && <i className="notification-unread-dot" aria-hidden="true" />}
           </button>
           {notifOpen && (
-            <div className="popover-panel notification-panel">
+            <div className={`popover-panel notification-panel ${birthdayNotifications.length ? 'birthday-notification-popup' : ''}`}>
               <div className="popover-header">
+                <BirthdayConfettiLayer className="notification-header-confetti" />
                 <div>
                   <strong>Notifications</strong>
                   <small>{unread} unread updates</small>
                 </div>
-                <button className="text-link" onClick={() => { markAllNotificationsRead().catch((err) => setToast(err.message || 'Unable to update notifications.')); }}>
-                  <CheckCheck size={14} /> Mark all read
+                <button
+                  type="button"
+                  className="notification-mark-all"
+                  disabled={markingAllRead || !hasUnreadNotifications}
+                  onClick={markAllRead}
+                >
+                  {markingAllRead ? 'Updating…' : 'Mark all read'}
                 </button>
+
               </div>
-              {notifications.length ? (
-                notifications.map((item) => (
+              {birthdaysError && !birthdayNotifications.length && (
+                <div className="notification-data-warning" role="status">
+                  Birthday notifications are temporarily unavailable.
+                </div>
+              )}
+              {displayedNotifications.length ? (
+                displayedNotifications.map((item) => (
                   <button
                     key={item.id}
-                    className={`notification-row ${!item.read ? 'unread' : ''}`}
-                    onClick={() => {
-                      markNotificationRead(item.id).catch((err) => setToast(err.message || 'Unable to update notification.'));
-                      setNotifOpen(false);
-                      navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
+                    className={`notification-row ${item.type === 'birthday' ? 'birthday-notification' : ''} ${!item.read ? 'unread' : ''}`}
+                    onClick={async () => {
+                      if (item.type === 'birthday') {
+                        if (markingReadId) return;
+                        const employeeId = item.employee?.id;
+                        const previous = birthdayReadOverrides[item.id];
+                        setMarkingReadId(item.id);
+                        setBirthdayReadOverrides((current) => ({ ...current, [item.id]: true }));
+                        try {
+                          await dataApi.birthdays.markRead(employeeId);
+                          await refreshBirthdays();
+                        } catch (err) {
+                          setBirthdayReadOverrides((current) => {
+                            const next = { ...current };
+                            if (previous === undefined) delete next[item.id];
+                            else next[item.id] = previous;
+                            return next;
+                          });
+                          setToast(err.message || 'Unable to update birthday notification.');
+                        } finally {
+                          setMarkingReadId(null);
+                        }
+                        return;
+                      }
+                      const previous = notificationReadOverrides[item.id];
+                      setNotificationReadOverrides((current) => ({ ...current, [item.id]: true }));
+                      try {
+                        await markNotificationRead(item.id);
+                        navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
+                      } catch (err) {
+                        setNotificationReadOverrides((current) => {
+                          const next = { ...current };
+                          if (previous === undefined) delete next[item.id];
+                          else next[item.id] = previous;
+                          return next;
+                        });
+                        setToast(err.message || 'Unable to update notification.');
+                      }
                     }}
                   >
                     <span className={`notification-symbol ${item.type}`}>
-                      {item.type === 'event' ? <CalendarDays size={16} /> : item.type === 'kudos' ? <Award size={16} /> : <Megaphone size={16} />}
+                      {item.type === 'birthday' ? (
+                        item.employee?.avatar ? <img src={resolveAssetUrl(item.employee.avatar)} alt="" className="birthday-notification-avatar" /> : <Cake size={16} />
+                      ) : item.type === 'event' ? <CalendarDays size={16} /> : item.type === 'kudos' ? <Award size={16} /> : <Megaphone size={16} />}
                     </span>
                     <span>
                       <strong>{item.title}</strong>
                       <small>{item.detail}</small>
                       <em>{item.time}</em>
                     </span>
-                    {!item.read && <span className="unread-dot" />}
+                    {item.type === 'birthday' ? <span className="birthday-notification-cake" aria-label="Birthday cake">🎂</span> : !item.read && <span className="unread-dot" />}
                   </button>
                 ))
               ) : (
@@ -232,6 +419,14 @@ export default function Header({ pageTitle, onMenuClick }) {
             </div>
           )}
         </div>
+
+        {/* Personal birthday celebration */}
+        <BirthdayModal
+          birthdays={birthdaysToday}
+          loaded={birthdaysLoaded}
+          error={birthdaysError}
+          onPersonalDismissed={() => setPersonalBirthdayDismissed(true)}
+        />
 
         {/* Dark/Light Theme Toggle */}
         <button
