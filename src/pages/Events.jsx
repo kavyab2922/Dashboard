@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react';
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, Rows3 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, Rows3 } from 'lucide-react';
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
 import { Button, PageTitle, Panel, Tag } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
 import { formatDate, getEventImage } from '../utils/format';
 
 const EVENT_MANAGE_KEY = 'hrobit-event-manage-open';
+const EVENT_DRAFT_KEY = 'hrobit-event-editor-draft';
 
-function hasOpenEventEditor() {
+function hasEventFormOpen() {
   try {
-    const manageOpen = sessionStorage.getItem(EVENT_MANAGE_KEY) || localStorage.getItem(EVENT_MANAGE_KEY);
-    const draft = sessionStorage.getItem('hrobit-event-editor-draft') || localStorage.getItem('hrobit-event-editor-draft');
-    return manageOpen === 'true' || Boolean(JSON.parse(draft || 'null')?.open);
+    const navigation = performance.getEntriesByType('navigation')[0];
+    if (navigation?.type !== 'reload') return false;
+    const manageOpen = sessionStorage.getItem(EVENT_MANAGE_KEY) === 'true';
+    const draft = JSON.parse(sessionStorage.getItem(EVENT_DRAFT_KEY) || 'null');
+    return manageOpen && Boolean(draft?.open);
   } catch {
     return false;
   }
@@ -20,21 +23,22 @@ function hasOpenEventEditor() {
 export default function Events() {
   const { events, eventsState, isHrAdmin, setToast } = useApp();
   const [view, setView] = useState('list');
-  const [manage, setManage] = useState(hasOpenEventEditor);
+  const [manage, setManage] = useState(hasEventFormOpen);
   const setManageView = (nextValue) => {
+    if (nextValue) sessionStorage.setItem(EVENT_MANAGE_KEY, 'true');
+    else sessionStorage.removeItem(EVENT_MANAGE_KEY);
     setManage(nextValue);
-    try {
-      if (nextValue) {
-        sessionStorage.setItem(EVENT_MANAGE_KEY, 'true');
-        localStorage.setItem(EVENT_MANAGE_KEY, 'true');
-      } else {
-        sessionStorage.removeItem(EVENT_MANAGE_KEY);
-        localStorage.removeItem(EVENT_MANAGE_KEY);
-      }
-    } catch {
-      // Continue normally when browser storage is unavailable.
-    }
   };
+
+  useEffect(() => {
+    const showList = () => {
+      sessionStorage.removeItem(EVENT_MANAGE_KEY);
+      setManage(false);
+    };
+    window.addEventListener('hrobit:show-events-list', showList);
+    return () => window.removeEventListener('hrobit:show-events-list', showList);
+  }, []);
+
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -63,7 +67,7 @@ export default function Events() {
       <EditableCollectionPage
         type="events"
         embedded
-        backAction={<Button variant="secondary" onClick={() => setManageView(false)}>← Back to events</Button>}
+        backAction={<Button variant="secondary" onClick={() => setManageView(false)}><ArrowLeft size={15} /> Back to events</Button>}
       />
     </>
   );
@@ -82,7 +86,7 @@ export default function Events() {
         eyebrow="MAKE TIME FOR CONNECTION"
         title="Upcoming events"
         description="Company townhalls, technical deep dives, wellness workshops and team gatherings."
-        actions={isHrAdmin ? <Button variant="secondary" onClick={() => setManageView(true)}>Manage events</Button> : null}
+        actions={isHrAdmin ? <Button variant="secondary" onClick={() => { sessionStorage.removeItem(EVENT_DRAFT_KEY); setManageView(true); }}>Manage events</Button> : null}
       />
 
       <div className="events-hero">

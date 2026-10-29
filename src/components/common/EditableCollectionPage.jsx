@@ -14,17 +14,11 @@ const configurations = {
 
 const EVENT_EDITOR_DRAFT_KEY = 'hrobit-event-editor-draft';
 const ANNOUNCEMENT_EDITOR_DRAFT_KEY = 'hrobit-announcement-editor-draft';
-const EVENT_MANAGE_KEY = 'hrobit-event-manage-open';
-const ANNOUNCEMENT_MANAGE_KEY = 'hrobit-announcement-manage-open';
-
-function markEventManageOpen() {
-  try { sessionStorage.setItem(EVENT_MANAGE_KEY, 'true'); } catch { /* storage may be unavailable */ }
-}
 
 function readDraft(key) {
   try {
     const saved = JSON.parse(sessionStorage.getItem(key) || 'null');
-    return saved && saved.open ? saved : null;
+    return saved?.open ? saved : null;
   } catch {
     return null;
   }
@@ -36,6 +30,10 @@ function readEventDraft() {
 
 function readAnnouncementDraft() {
   return readDraft(ANNOUNCEMENT_EDITOR_DRAFT_KEY);
+}
+
+function markEventManageOpen() {
+  // Kept only for the Save Draft action; opening the page never enters manage mode.
 }
 
 function defaultItem(type) {
@@ -154,9 +152,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
   const readOnly = Boolean(config.readOnly) || !isHrAdmin;
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('All');
-  const savedEventDraft = type === 'events' ? readEventDraft() : null;
-  const savedAnnouncementDraft = type === 'announcements' ? readAnnouncementDraft() : null;
-  const savedDraft = savedEventDraft || savedAnnouncementDraft;
+  const savedDraft = type === 'events' ? readEventDraft() : type === 'announcements' ? readAnnouncementDraft() : null;
   const [modalOpen, setModalOpen] = useState(Boolean(savedDraft));
   const [draftListOpen, setDraftListOpen] = useState(false);
   const [editingId, setEditingId] = useState(savedDraft?.editingId || null);
@@ -180,9 +176,8 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
   const upcomingEvents = events.filter((event) => event.date && event.date >= today);
   const clearEventDraft = () => { try { sessionStorage.removeItem(EVENT_EDITOR_DRAFT_KEY); } catch { /* storage may be unavailable */ } };
   const clearAnnouncementDraft = () => { try { sessionStorage.removeItem(ANNOUNCEMENT_EDITOR_DRAFT_KEY); } catch { /* storage may be unavailable */ } };
-  const markManageOpen = () => { try { sessionStorage.setItem(type === 'events' ? EVENT_MANAGE_KEY : ANNOUNCEMENT_MANAGE_KEY, 'true'); } catch { /* storage may be unavailable */ } };
-  const openCreate = () => { if (type === 'events' || type === 'announcements') markManageOpen(); if (type === 'events') clearEventDraft(); if (type === 'announcements') clearAnnouncementDraft(); setEditingId(null); setImageError(''); setHostError(''); setHostName(''); setHostDropdownOpen(false); setRelatedEventDropdownOpen(false); setEventImageFile(null); setForm(defaultItem(type)); setModalOpen(true); };
-  const openEdit = (item) => { if (type === 'events' || type === 'announcements') markManageOpen(); if (type === 'events') clearEventDraft(); if (type === 'announcements') clearAnnouncementDraft(); setEditingId(item.id); setImageError(''); setHostError(''); setHostName(''); setHostDropdownOpen(false); setRelatedEventDropdownOpen(false); setEventImageFile(null); setForm({ ...defaultItem(type), ...item, hosts: Array.isArray(item.hosts) ? item.hosts : [] }); setModalOpen(true); };
+  const openCreate = () => { if (type === 'events') clearEventDraft(); if (type === 'announcements') clearAnnouncementDraft(); setEditingId(null); setImageError(''); setHostError(''); setHostName(''); setHostDropdownOpen(false); setRelatedEventDropdownOpen(false); setEventImageFile(null); setForm(defaultItem(type)); setModalOpen(true); };
+  const openEdit = (item) => { if (type === 'events') clearEventDraft(); if (type === 'announcements') clearAnnouncementDraft(); setEditingId(item.id); setImageError(''); setHostError(''); setHostName(''); setHostDropdownOpen(false); setRelatedEventDropdownOpen(false); setEventImageFile(null); setForm({ ...defaultItem(type), ...item, hosts: Array.isArray(item.hosts) ? item.hosts : [] }); setModalOpen(true); };
 
   useEffect(() => {
     if (!modalOpen || (type !== 'events' && type !== 'announcements')) return undefined;
@@ -288,7 +283,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
     <form id="event-editor-form" className="event-form" onSubmit={save}>
       <div className="event-form-grid">
         <section className="event-card event-card-hero"><h3>Event Cover &amp; Banner Photo</h3><p className="event-section-description">Upload high-resolution artwork to display across calendars and feeds.</p><div className="event-photo-upload"><div className={`event-photo-stage ${form.image ? 'has-photo' : ''}`}>{form.image ? <div className="event-photo-preview"><img src={form.image} alt="Event preview" /><button type="button" onClick={() => { setForm((prev) => ({ ...prev, image: '' })); setEventImageFile(null); }} aria-label="Remove event photo"><X size={15} /></button><label className="event-photo-replace">Replace photo<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { handleEventImage(e.target.files?.[0]); e.target.value = ''; }} /></label></div> : <label className="event-photo-picker"><ImagePlus size={22} /><strong>Upload cover image</strong><span>Browse files</span><small>Recommended ratio 16:9 · PNG, JPG, or WEBP up to 7MB</small><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => { handleEventImage(e.target.files?.[0]); e.target.value = ''; }} /></label>}</div>{imageError && <span className="event-photo-error">{imageError}</span>}</div><EventField field={eventFields[0]} form={form} setForm={setForm} /><div className="event-inline-fields"><EventField field={eventFields[5]} form={form} setForm={setForm} /><div className="event-field-placeholder" /></div></section>
-        <aside className="event-sidebar"><section className="event-card event-reminders"><h3>Distribution &amp; Reminders</h3><label><input type="checkbox" defaultChecked /> Post to #announcements on publish</label><label><input type="checkbox" defaultChecked /> Sync with Google Calendar &amp; Outlook</label><label><input type="checkbox" defaultChecked /> Send automated reminder 24h before</label></section></aside>
+        <aside className="event-sidebar" />
         <section className="event-card event-card-details"><h3>Date, Time &amp; Location</h3><p className="event-section-description">Specify schedule details and attendance venue or online room.</p><div className="event-two-fields"><EventField field={eventFields[2]} form={form} setForm={setForm} /><EventField field={eventFields[3]} form={form} setForm={setForm} /></div><EventField field={eventFields[4]} form={form} setForm={setForm} /></section>
         <section className="event-card event-card-description"><EventField field={eventFields[1]} form={form} setForm={setForm} /><h4>Key Speakers &amp; Hosts {!((form.category || '') === 'Holiday') && <><span className="required-mark" aria-hidden="true">*</span> <em>Required · Add at least one host</em></>}</h4><div className="event-host-add"><div ref={hostComboboxRef} className={`event-host-combobox is-dropdown-${hostDropdownPlacement}`}><input value={hostName} placeholder="Type to search hosts" aria-label="Search event host" aria-expanded={hostDropdownOpen} aria-autocomplete="list" onFocus={() => setHostDropdownOpen(true)} onKeyDown={(e) => { if (e.key === 'Escape') setHostDropdownOpen(false); }} onBlur={() => window.setTimeout(() => setHostDropdownOpen(false), 120)} onChange={(e) => { setHostName(e.target.value); setHostError(''); setHostDropdownOpen(true); }} />{hostDropdownOpen && <div className="event-host-dropdown" role="listbox">{(contacts || []).filter((employee) => employee.name?.trim()).filter((employee) => { const search = hostName.trim().toLowerCase(); const name = employee.name.trim().toLowerCase(); const role = employee.role?.toLowerCase() || ''; return !search || name.includes(search) || role.includes(search); }).filter((employee) => !(form.hosts || []).includes(employee.name)).map((employee) => <button type="button" key={employee.id} role="option" onMouseDown={(e) => e.preventDefault()} onClick={() => { setHostName(employee.name); setHostDropdownOpen(false); setHostError(''); }}><span className="event-host-avatar">{employee.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</span><span><strong>{employee.name}</strong><small>{employee.role || 'Employee'}</small></span></button>)}{!(contacts || []).some((employee) => { const search = hostName.trim().toLowerCase(); const name = employee.name?.trim().toLowerCase(); const role = employee.role?.toLowerCase() || ''; return name && (!search || name.includes(search) || role.includes(search)) && !(form.hosts || []).includes(employee.name); }) && <p>No matching employees found.</p>}</div>}</div><button type="button" onClick={() => { const name = hostName.trim(); if (!name) return setHostError('Select a host name.'); if (!(contacts || []).some((employee) => employee.name === name)) return setHostError('Select a host from the dropdown.'); if (form.hosts?.includes(name)) return setHostError('This host is already added.'); setForm((prev) => ({ ...prev, hosts: [...(prev.hosts || []), name] })); setHostName(''); setHostDropdownOpen(false); setHostError(''); }}>Add host</button></div>{hostError && <p className="event-host-error">{hostError}</p>}<div className="event-hosts">{(form.hosts || []).map((host, index) => <span key={`${host}-${index}`}><b>{host.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase()}</b><strong>{host}</strong><button type="button" aria-label={`Remove ${host}`} onClick={() => setForm((prev) => ({ ...prev, hosts: prev.hosts.filter((_, hostIndex) => hostIndex !== index) }))}><X size={13} /></button></span>)}</div></section>
         <div className="event-form-footer"><Button variant="secondary" type="button" onClick={() => { if (type === 'events') markEventManageOpen(); setModalOpen(false); }}>Save Draft</Button><Button type="submit" disabled={saving || uploading || Boolean(imageError)}>{uploading ? 'Uploading photo…' : saving ? 'Saving…' : 'Publish Event'}</Button></div>

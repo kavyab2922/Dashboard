@@ -1,6 +1,27 @@
-import { useState } from 'react';
-import { ArrowUpRight, Bookmark, CalendarDays, Megaphone, Pin, Search, Sparkles } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, ArrowUpRight, Bookmark, CalendarDays, Megaphone, Pin, Search, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const ANNOUNCEMENT_MANAGE_KEY = 'hrobit-announcement-manage-open';
+const ANNOUNCEMENT_DRAFT_KEY = 'hrobit-announcement-editor-draft';
+const ANNOUNCEMENT_RELOAD_KEY = 'hrobit-announcement-browser-refresh';
+const ANNOUNCEMENT_FORCE_FEED_KEY = 'hrobit-announcement-force-feed';
+
+function hasAnnouncementFormOpen() {
+  try {
+    const forceFeed = sessionStorage.getItem(ANNOUNCEMENT_FORCE_FEED_KEY) === 'true';
+    sessionStorage.removeItem(ANNOUNCEMENT_FORCE_FEED_KEY);
+    if (forceFeed) return false;
+    const restoringAfterRefresh = sessionStorage.getItem(ANNOUNCEMENT_RELOAD_KEY) === 'true';
+    sessionStorage.removeItem(ANNOUNCEMENT_RELOAD_KEY);
+    const manageOpen = sessionStorage.getItem(ANNOUNCEMENT_MANAGE_KEY) === 'true';
+    const draft = JSON.parse(sessionStorage.getItem(ANNOUNCEMENT_DRAFT_KEY) || 'null');
+    return restoringAfterRefresh && manageOpen && Boolean(draft?.open);
+  } catch {
+    return false;
+  }
+}
+
 import EditableCollectionPage from '../components/common/EditableCollectionPage';
 import { PageTitle, Panel, Tag, Button, Modal, PanelHeading } from '../components/common/UI';
 import { useApp } from '../context/AppContext';
@@ -8,10 +29,26 @@ import { formatDate } from '../utils/format';
 
 export default function Announcements() {
   const { announcements, announcementsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
-  const [manage, setManage] = useState(false);
+  const [manage, setManage] = useState(hasAnnouncementFormOpen);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
+
+  useEffect(() => {
+    const markRefresh = () => sessionStorage.setItem(ANNOUNCEMENT_RELOAD_KEY, 'true');
+    window.addEventListener('beforeunload', markRefresh);
+    return () => window.removeEventListener('beforeunload', markRefresh);
+  }, []);
+
+  useEffect(() => {
+    const showFeed = () => {
+      setManage(false);
+      sessionStorage.removeItem(ANNOUNCEMENT_MANAGE_KEY);
+      sessionStorage.removeItem(ANNOUNCEMENT_FORCE_FEED_KEY);
+    };
+    window.addEventListener('hrobit:show-announcements-feed', showFeed);
+    return () => window.removeEventListener('hrobit:show-announcements-feed', showFeed);
+  }, []);
 
   const filters = ['All', ...new Set(announcements.map((item) => item.category))];
   const filtered = announcements.filter((item) =>
@@ -29,12 +66,11 @@ export default function Announcements() {
   };
 
   if (manage) return (
-    <>
-      <EditableCollectionPage type="announcements" embedded/>
-      <div className="back-to-feed">
-        <Button variant="secondary" onClick={() => setManage(false)}>← Back to announcements feed</Button>
-      </div>
-    </>
+    <EditableCollectionPage
+      type="announcements"
+      embedded
+      backAction={<Button variant="secondary" onClick={() => { sessionStorage.removeItem(ANNOUNCEMENT_MANAGE_KEY); setManage(false); }}><ArrowLeft size={15} /> Back to announcements</Button>}
+    />
   );
 
   return (
@@ -43,7 +79,7 @@ export default function Announcements() {
         eyebrow="THE LATEST FROM YOUR WORKPLACE"
         title="Announcements"
         description="A shared space for company milestones, executive updates, cultural news and essential workforce notices."
-        actions={isHrAdmin ? <Button onClick={() => setManage(true)}>Manage posts</Button> : null}
+        actions={isHrAdmin ? <Button onClick={() => { sessionStorage.removeItem(ANNOUNCEMENT_DRAFT_KEY); sessionStorage.setItem(ANNOUNCEMENT_MANAGE_KEY, 'true'); setManage(true); }}>Manage posts</Button> : null}
       />
 
       <div className="announcement-feature">

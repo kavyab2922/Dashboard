@@ -11,7 +11,6 @@ const QuickLinksPage = lazy(() => import('./pages/QuickLinksPage'));
 const HRContacts = lazy(() => import('./pages/HRContacts'));
 const HRFAQ = lazy(() => import('./pages/HRFAQ'));
 const Games = lazy(() => import('./pages/Games'));
-const GamePlay = lazy(() => import('./pages/GamePlay'));
 const LearningHub = lazy(() => import('./pages/LearningHub'));
 const Recognition = lazy(() => import('./pages/Recognition'));
 const Community = lazy(() => import('./pages/Community'));
@@ -59,7 +58,6 @@ export default function App() {
           <Route path="/hr-contacts" element={<HRContacts />} />
           <Route path="/faq" element={<HRFAQ />} />
           <Route path="/games" element={<Games />} />
-          <Route path="/games/:gameId" element={<GamePlay />} />
           <Route path="/learning" element={<LearningHub />} />
           <Route path="/recognition" element={<Recognition />} />
           <Route path="/community" element={<Community />} />
