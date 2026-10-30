@@ -14,7 +14,8 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { APP_SUGGESTIONS } from '../../data/appGuide';
-import { buildAssistantReply } from '../../utils/appAssistant';
+import { buildAssistantReply, isKnowledgeQuestion } from '../../utils/appAssistant';
+import { chatbotApi } from '../../services/api';
 
 const MAX_MESSAGE_LENGTH = 500;
 const MAX_APP_SUGGESTIONS = 3;
@@ -63,7 +64,7 @@ function Message({ message, onAsk, onContactHr, onNavigate }) {
       <div className={`chat-message ${isUser ? 'user' : 'bot'} ${isCaveat ? 'is-warning' : ''}`}>
         <span className="message-label">{label}</span>
         {message.title && <strong className="chat-message-title">{message.title}</strong>}
-        {message.text && <p>{message.text}</p>}
+        {message.text && <p style={{ whiteSpace: 'pre-wrap' }}>{message.text}</p>}
 
         {message.steps?.length > 0 && (
           <ol className="chat-steps">
@@ -78,6 +79,12 @@ function Message({ message, onAsk, onContactHr, onNavigate }) {
         )}
 
         {message.note && <p className="chat-message-note">{message.note}</p>}
+
+        {message.sources?.length > 0 && (
+          <div className="chat-message-note">
+            <strong>Sources:</strong> {message.sources.join(', ')}
+          </div>
+        )}
 
         {message.options?.length > 0 && (
           <div className="chat-options">
@@ -247,26 +254,52 @@ export default function FAQChatbot() {
     return () => window.removeEventListener('hrobit-open-chat', openAssistant);
   }, []);
 
-  const sendMessage = (rawText) => {
+  const sendMessage = async (rawText) => {
     const message = String(rawText || '').trim();
     if (!message || processingRef.current) return;
 
     processingRef.current = true;
     setIsProcessing(true);
     setInput('');
+    const priorConversation = messages.slice(-6).map((item) => ({
+      role: item.role === 'bot' ? 'assistant' : 'user',
+      content: item.text || '',
+    }));
     setMessages((items) => [...items, { id: `u-${++idRef.current}`, role: 'user', text: message }]);
 
-    window.clearTimeout(replyTimer.current);
-    replyTimer.current = window.setTimeout(() => {
-      const reply = buildAssistantReply(message, faqs, { firstName }) || {
-        kind: 'fallback',
-        title: 'Something went wrong',
-        text: 'I could not work out an answer for that. Please try rephrasing it.',
-      };
+    try {
+      const result = await chatbotApi.ask(message, priorConversation);
+      setMessages((items) => [...items, {
+        id: `b-${++idRef.current}`,
+        role: 'bot',
+        kind: result.dataType === 'live' ? 'live' : result.intent === 'service_unavailable' ? 'unavailable' : 'faq',
+        category: result.dataType === 'live'
+          ? 'Live HROrbit data'
+          : result.intent === 'leave_policy'
+            ? 'Grounded leave policy'
+            : result.intent === 'grounded_knowledge'
+              ? 'Grounded HR answer'
+              : 'HROrbit guide',
+        text: result.answer,
+        sources: result.sources || [],
+      }]);
+    } catch (error) {
+      const reply = isKnowledgeQuestion(message)
+        ? {
+          kind: 'unavailable',
+          title: 'HR knowledge temporarily unavailable',
+          text: 'I could not retrieve the verified HR document right now. Please try again or contact HR.',
+        }
+        : buildAssistantReply(message, faqs, { firstName }) || {
+          kind: 'fallback',
+          title: 'Assistant unavailable',
+          text: 'I could not reach the HR assistant. Please try again or contact HR.',
+        };
       setMessages((items) => [...items, { id: `b-${++idRef.current}`, role: 'bot', ...reply }]);
+    } finally {
       processingRef.current = false;
       setIsProcessing(false);
-    }, REPLY_DELAY);
+    }
   };
 
   sendRef.current = sendMessage;

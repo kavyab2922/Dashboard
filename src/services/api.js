@@ -2,8 +2,9 @@
  * API boundary for the HROrbit Express backend.
  * Business data is fetched from the backend and PostgreSQL.
  */
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000')
+  .replace(/\/+$/, '')
+  .replace(/\/api$/i, '');
 
 // Provider URLs used by the games.
 export const GAME_APIS = Object.freeze({
@@ -114,6 +115,16 @@ const del = (path) =>
   request(path, {
     method: 'DELETE',
   });
+
+export const chatbotApi = {
+  ask(question, conversation = []) {
+    return post('/chatbot/ask', { question, conversation });
+  },
+
+  employeesOnLeave() {
+    return get('/chatbot/employees-on-leave');
+  },
+};
 
 // Authentication APIs
 export const authApi = {

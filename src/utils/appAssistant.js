@@ -246,6 +246,25 @@ const THANKS_RE = /^(thanks|thank you|thx|ty|cheers|great thanks|perfect thanks)
 const CAPABILITY_RE = /(what can (you|u|this|the assistant) (do|help)|what (do|can) you (do|help|know)|how can (you|u) help|what can i ask|what (types|kind) of questions|what are you|who are you|what do you help with|what is this (app|portal|platform|chat|assistant|bot)|what can this assistant|what does this (app|portal|assistant) do)/;
 const SHORT_HELP_RE = /^(help|help me|i need help|assist|support|hey help|hi help)$/;
 
+export function isKnowledgeQuestion(question) {
+  const text = normalize(question);
+  const policyTopic = /\b(leaves?|casual|sick|maternity|paternity|menstrual|time off|vacation|pto|cl|sl|code of conduct|workplace behaviour|workplace behavior|employee responsibilities)\b/.test(text);
+  const policySignal = /\b(policy|policies|rules?|entitlement|eligible|eligibility|allowance|allowed|approval|approv|carry forward|carryover|lapse|loss of pay|unauthorized absence|how many|how much|available|responsibilit|behaviou?r)\b/.test(text)
+    || /\b(casual|sick|maternity|paternity|menstrual) leaves?\b/.test(text)
+    || /\b(code of conduct|workplace behaviour|workplace behavior|employee responsibilities|\bcl\b|\bsl\b)\b/.test(text);
+  return policyTopic && policySignal;
+}
+
+function isLeavePolicyQuestion(question) {
+  const text = normalize(question);
+  const hasLeaveTopic = /\b(leaves?|casual|sick|maternity|paternity|menstrual|time off|vacation|pto)\b/.test(text);
+  const hasPolicySignal = /\b(policy|policies|entitlement|eligible|eligibility|allowance|allowed|approval|approv|carry forward|accru|how many|how much|rules?|days?\s+(of|do|can)|available)\b/.test(text)
+    || /\b(casual|sick|maternity|paternity|menstrual) leaves?\b/.test(text);
+  return hasLeaveTopic && hasPolicySignal
+    && !/\b(my|i|me)\b.*\b(balance|remaining|history|request|pending|approved)\b/.test(text)
+    && !/\b(apply|application|submit|request)\b.*\bleave\b/.test(text);
+}
+
 function detectSmallTalk(question, context) {
   const normalized = normalize(question);
   const words = normalized.split(' ');
@@ -280,6 +299,7 @@ export function buildAssistantReply(question, faqs = [], context = {}) {
   const normalizedText = normalize(text);
   if (CAPABILITY_RE.test(normalizedText) || SHORT_HELP_RE.test(normalizedText)) return capabilitiesReply(context);
 
+  const policyQuestion = isLeavePolicyQuestion(text);
   const ranked = rankTopics(text);
   const best = ranked[0];
   const second = ranked[1];
@@ -288,20 +308,20 @@ export function buildAssistantReply(question, faqs = [], context = {}) {
     && second.topic.id !== best.topic.id
     && second.score >= best.score * AMBIGUITY_RATIO;
 
-  if (confident && !ambiguous && best.topic.kind === 'app') return appReply(best.topic);
+  if (!policyQuestion && confident && !ambiguous && best.topic.kind === 'app') return appReply(best.topic);
 
   // Features this build does not have must never be answered with stored HR
   // text that describes a screen the employee cannot find.
-  if (confident && !ambiguous && best.topic.kind === 'unavailable' && best.topic.preferHrAnswer === false) {
+  if (!policyQuestion && confident && !ambiguous && best.topic.kind === 'unavailable' && best.topic.preferHrAnswer === false) {
     return unavailableReply(best.topic);
   }
 
   const faqMatch = findFaqAnswer(text, faqs);
-  if (faqMatch && faqMatch.strong) return faqReply(faqMatch);
+  if (!policyQuestion && faqMatch && faqMatch.strong) return faqReply(faqMatch);
 
-  if (confident && !ambiguous && best.topic.kind === 'unavailable') return unavailableReply(best.topic);
-  if (confident && ambiguous) return clarifyReply(ranked, context);
-  if (confident) return appReply(best.topic);
+  if (!policyQuestion && confident && !ambiguous && best.topic.kind === 'unavailable') return unavailableReply(best.topic);
+  if (confident && ambiguous && !policyQuestion) return clarifyReply(ranked, context);
+  if (confident && !policyQuestion) return appReply(best.topic);
 
   return fallbackReply(text);
 }

@@ -75,7 +75,7 @@ export default function GiveKudosModal({ open, onClose }) {
         <FormField label="Your message">
           <textarea
             required
-            minLength={5}
+            minLength={4}
             maxLength={400}
             rows={4}
             value={message}
