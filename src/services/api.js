@@ -128,18 +128,9 @@ export const chatbotApi = {
 
 // Authentication APIs
 export const authApi = {
-  login(credentials) {
-    return request('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(credentials),
-    });
-  },
-
-  register(details) {
-    return request('/auth/register', {
-      method: 'POST',
-      body: JSON.stringify(details),
-    });
+  // Email + password, verified against the company Microsoft account.
+  login(email, password) {
+    return post('/auth/login', { email, password });
   },
 
   me() {

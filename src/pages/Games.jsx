@@ -4,10 +4,9 @@ import {
   Award, CheckCircle2, Clock, Flame, Gauge, Play, Sparkles, Star, Trophy, X,
 } from 'lucide-react';
 import { dataApi } from '../services/api';
-import { EmptyState, PageTitle, Panel, PanelHeading } from '../components/common/UI';
+import { EmptyState, PageTitle, Panel } from '../components/common/UI';
 import { GameIcon, GAME_TONES } from '../components/games/common';
 import GameIconRain from '../components/games/GameIconRain';
-import { ChampionsPodium } from '../components/games/Leaderboard';
 
 const FILTERS = [
   { id: 'all', label: 'All Games' },
@@ -43,7 +42,7 @@ function GameCard({ game, favorite, onToggleFavorite, onPlay }) {
   return (
     <article className={`game-card game-card-${tone} status-${game.status}`}>
       <div className="game-card-top">
-        <span className={`game-card-icon tone-${tone}`}><GameIcon name={game.icon} size={20} /></span>
+        <span className={`game-card-icon tone-${tone}`}><GameIcon name={game.icon} size={22} /></span>
         <span className={`game-card-status status-${game.status}`}>
           {game.status === 'completed' && <CheckCircle2 size={13} aria-hidden="true" />}
           {STATUS_LABEL[game.status] || 'Not played'}
@@ -93,6 +92,9 @@ function HeaderStat({ icon: Icon, label, value, hint }) {
   );
 }
 
+const MEDAL_CLASSES = ['gold', 'silver', 'bronze'];
+const MEDALS = ['🥇', '🥈', '🥉'];
+
 /** Compact Top-3 Leaderboard for the gamification banner. */
 function BannerLeaderboard() {
   const [players, setPlayers] = useState([]);
@@ -101,92 +103,38 @@ function BannerLeaderboard() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
     dataApi.dailyGames.champions('all')
       .then((payload) => {
-        if (cancelled) return;
-        const all = (payload.data?.champions || []).slice(0, 3);
-        setPlayers(all);
-        setLoading(false);
+        if (!cancelled) setPlayers((payload.data?.champions || []).slice(0, 3));
       })
       .catch((err) => {
-        if (cancelled) return;
-        setError(err.message || 'Unable to load the leaderboard.');
-        setPlayers([]);
-        setLoading(false);
+        if (!cancelled) setError(err.message || 'Unable to load the leaderboard.');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
   }, []);
 
+  let body;
   if (loading) {
-    return (
-      <div className="banner-leaderboard">
-        <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
-        <div className="banner-leaderboard-row banner-loader"><span className="banner-skeleton banner-skeleton-medal" /><span className="banner-skeleton banner-skeleton-name" /><span className="banner-skeleton banner-skeleton-points" /></div>
-        <div className="banner-leaderboard-row banner-loader"><span className="banner-skeleton banner-skeleton-medal" /><span className="banner-skeleton banner-skeleton-name" /><span className="banner-skeleton banner-skeleton-points" /></div>
-        <div className="banner-leaderboard-row banner-loader"><span className="banner-skeleton banner-skeleton-medal" /><span className="banner-skeleton banner-skeleton-name" /><span className="banner-skeleton banner-skeleton-points" /></div>
+    body = MEDAL_CLASSES.map((medal) => <div className="banner-leaderboard-row is-loading" key={medal} aria-hidden="true" />);
+  } else if (error || !players.length) {
+    body = <div className="banner-leaderboard-empty">{error || 'No player data yet.'}</div>;
+  } else {
+    body = players.map((player, index) => (
+      <div className={`banner-leaderboard-row ${MEDAL_CLASSES[index]}`} key={player.employeeKey || player.name || index}>
+        <span className="banner-leaderboard-medal">{MEDALS[index]}</span>
+        <span className="banner-leaderboard-name" title={player.name}>{player.name}</span>
+        <span className="banner-leaderboard-points">{Number(player.points ?? 0).toLocaleString()} pts</span>
       </div>
-    );
+    ));
   }
-
-  if (error) {
-    return (
-      <div className="banner-leaderboard">
-        <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
-        <div className="banner-leaderboard-empty">{error}</div>
-      </div>
-    );
-  }
-
-  if (!players.length) {
-    return (
-      <div className="banner-leaderboard">
-        <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
-        <div className="banner-leaderboard-empty">No player data yet.</div>
-      </div>
-    );
-  }
-
-  const getMedalClass = (index) => {
-    switch (index) {
-      case 0: return 'gold';
-      case 1: return 'silver';
-      case 2: return 'bronze';
-      default: return '';
-    }
-  };
 
   return (
     <div className="banner-leaderboard">
       <span className="banner-leaderboard-heading">🏆 Top 3 Players</span>
-      {players.map((player, index) => {
-  const medals = ['🥇', '🥈', '🥉'];
-  const medalClasses = ['gold', 'silver', 'bronze'];
-
-  return (
-    <div
-      className={`banner-leaderboard-row ${medalClasses[index]}`}
-      key={player.employeeKey || player.name || index}
-    >
-      <span className="banner-leaderboard-medal">
-        {medals[index]}
-      </span>
-
-      <span
-        className="banner-leaderboard-name"
-        title={player.name}
-      >
-        {player.name}
-      </span>
-
-      <span className="banner-leaderboard-points">
-        {Number(player.points ?? 0).toLocaleString()} pts
-      </span>
-    </div>
-  );
-})}
-      {/* View All link would go here if a full leaderboard route exists */}
+      {body}
     </div>
   );
 }
@@ -198,24 +146,20 @@ export default function Games() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
-  const [period, setPeriod] = useState('all');
   const [favorites, setFavorites] = useState(readFavorites());
   const [celebrations, setCelebrations] = useState([]);
-  const [topChampions, setTopChampions] = useState([]);
   const [retryToken, setRetryToken] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const [listPayload, celebrationPayload, championsPayload] = await Promise.all([
+      const [listPayload, celebrationPayload] = await Promise.all([
         dataApi.dailyGames.list(),
         dataApi.dailyGames.celebrations().catch(() => ({ data: [] })),
-        dataApi.dailyGames.champions('all').catch(() => ({ data: [] })),
       ]);
       setGames(listPayload.data || []);
       setStats(listPayload.stats || null);
-      setTopChampions(championsPayload.data?.topChampions || championsPayload.data?.champions || []);
       setCelebrations(celebrationPayload.data || []);
     } catch (err) {
       setError(err.message || 'Unable to load the Daily Games line-up.');
@@ -254,8 +198,6 @@ export default function Games() {
 
   const hasStats = Boolean(stats);
   const completedToday = hasStats ? Number(stats.completedToday) : null;
-  const totalGames = hasStats ? Number(stats.totalGames) : null;
-  const progress = hasStats && totalGames > 0 ? Math.min(100, Math.round((completedToday / totalGames) * 100)) : 0;
 
   const playGame = (gameId) => navigate(`/games/${gameId}`);
 
@@ -264,7 +206,7 @@ export default function Games() {
       <GameIconRain gameId="all" intensity="vibrant" className="games-page-rain" />
       <PageTitle
         eyebrow="DAILY BRAIN BREAK"
-        title="Your Daily Brain Boost"
+        title="Daily games"
         description="Play. Complete challenges. Earn rewards. Build your streak!"
       />
 
@@ -280,9 +222,9 @@ export default function Games() {
         </div>
 
         <div className="games-header-stats">
-          <HeaderStat icon={Flame} label="Current streak" value={hasStats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null} hint={hasStats ? `Best ${stats.longestStreak} days` : '' } />
-          <HeaderStat icon={Trophy} label="Total points" value={hasStats ? stats.totalPoints.toLocaleString() : null} hint={hasStats ? `+${stats.todayPoints.toLocaleString()} today` : '' } />
-          <HeaderStat icon={CheckCircle2} label="Completed today" value={hasStats ? completedToday : null} hint={hasStats ? `${stats.totalCompleted} all time` : '' } />
+          <HeaderStat icon={Flame} label="Current streak" value={hasStats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null} hint={hasStats ? `Best ${stats.longestStreak} day${stats.longestStreak === 1 ? '' : 's'}` : ''} />
+          <HeaderStat icon={Trophy} label="Total points" value={hasStats ? stats.totalPoints.toLocaleString() : null} hint={hasStats ? `+${stats.todayPoints.toLocaleString()} today` : ''} />
+          <HeaderStat icon={CheckCircle2} label="Completed today" value={hasStats ? completedToday : null} hint={hasStats ? `${stats.totalCompleted} all time` : ''} />
           <HeaderStat icon={Award} label="Levels completed" value={hasStats ? stats.levelsCompleted : null} hint="Validated levels" />
         </div>
       </section>
@@ -291,7 +233,7 @@ export default function Games() {
         <div className="game-celebration" role="status"><Trophy size={18} aria-hidden="true" /><div><strong>{celebrations[0].title}</strong><p>{celebrations[0].message}</p></div><button type="button" className="icon-button" aria-label="Dismiss celebration" onClick={() => dismissCelebration(celebrations[0].eventKey)}><X size={16} /></button></div>
       )}
 
-      <div className="games-section-head"><div><h2>Choose your challenge</h2><p>Four fresh challenges · validated rewards · endless levels</p></div><div className="games-filters" role="tablist" aria-label="Filter games">{FILTERS.map((option) => (<button type="button" role="tab" key={option.id} aria-selected={filter === option.id} className={`filter-chip ${filter === option.id ? 'is-active' : ''}`} onClick={() => setFilter(option.id)}>{option.label}{option.id === 'favorites' && favorites.length > 0 ? ` (${favorites.length})` : ''}</button>))}</div></div>
+      <div className="games-section-head"><div><h2>Choose your challenge</h2><p>Fresh puzzles every day · validated rewards · endless levels</p></div><div className="games-filters" role="tablist" aria-label="Filter games">{FILTERS.map((option) => (<button type="button" role="tab" key={option.id} aria-selected={filter === option.id} className={`filter-chip ${filter === option.id ? 'is-active' : ''}`} onClick={() => setFilter(option.id)}>{option.label}{option.id === 'favorites' && favorites.length > 0 ? ` (${favorites.length})` : ''}</button>))}</div></div>
 
       {loading ? (
         <div className="games-grid" aria-hidden="true">{Array.from({ length: 4 }).map((_, index) => (<div className="game-card is-skeleton" key={index}><div className="skeleton-bar" /><div className="skeleton-bar skeleton-short" /><div className="skeleton-bar" /><div className="skeleton-bar skeleton-short" /></div>))}</div>
@@ -302,10 +244,6 @@ export default function Games() {
       ) : (
         <div className="games-grid">{visibleGames.map((game) => (<GameCard key={game.id} game={game} favorite={favorites.includes(game.id)} onToggleFavorite={toggleFavorite} onPlay={playGame} />))}</div>
       )}
-
-      {/* Full Leaderboard and Daily Games Champions sections removed - their UI cleaned up }}
-
-      {/* ChampionsPodium component kept for reuse, not rendered on this page */}
     </div>
   );
 }

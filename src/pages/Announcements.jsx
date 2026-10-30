@@ -9,7 +9,7 @@ import { formatDate } from '../utils/format';
 const ANNOUNCEMENT_MANAGE_KEY = 'hrobit-announcement-manage-open';
 
 export default function Announcements() {
-  const { announcements, announcementsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
+  const { announcements, announcementsState, events, eventsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
   // Stay in the manage view across a browser refresh; opening the page from a link shows the feed.
   const [manage, setManageState] = useState(() => {
     if (!canRestoreAfterRefresh('announcements-page')) return false;
@@ -31,11 +31,34 @@ export default function Announcements() {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
 
-  const filters = ['All', ...new Set(announcements.map((item) => item.category))];
-  const unreadCount = announcements.filter((item) => !item.read).length;
-  const pinnedCount = announcements.filter((item) => item.pinned).length;
-  const latestDate = announcements.reduce((latest, item) => (item.date && item.date > latest ? item.date : latest), '');
-  const filtered = announcements.filter((item) =>
+  // Keep the feed correct even when an older cached API response is displayed.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // The next 5 upcoming events (including holidays) are announced in the feed alongside posts.
+  const upcomingEventItems = events
+    .filter((event) => event.date && event.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 5)
+    .map((event) => ({
+      id: `event-${event.id}`,
+      title: event.title,
+      description: event.description,
+      details: [event.time, event.venue].filter(Boolean).join(' · '),
+      category: event.category || 'Event',
+      date: event.date,
+      image: event.image,
+      read: true,
+      isEvent: true,
+    }));
+  const currentAnnouncements = [...announcements.filter((item) => !item.date || item.date >= today), ...upcomingEventItems]
+    .sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || (a.date || '').localeCompare(b.date || ''));
+  const feedLoading = announcementsState.loading || eventsState.loading;
+  const feedError = announcementsState.error || eventsState.error;
+  const filters = ['All', ...new Set(currentAnnouncements.map((item) => item.category))];
+  const unreadCount = currentAnnouncements.filter((item) => !item.read).length;
+  const pinnedCount = currentAnnouncements.filter((item) => item.pinned).length;
+  const latestDate = currentAnnouncements.reduce((latest, item) => (item.date && item.date > latest ? item.date : latest), '');
+  const filtered = currentAnnouncements.filter((item) =>
     `${item.title} ${item.description} ${item.details}`.toLowerCase().includes(search.toLowerCase()) &&
     (category === 'All' || item.category === category)
   );
@@ -83,7 +106,7 @@ export default function Announcements() {
           </div>
         </div>
         <dl className="announcement-stats">
-          <div><dt>Updates</dt><dd>{announcements.length}</dd></div>
+          <div><dt>Updates</dt><dd>{currentAnnouncements.length}</dd></div>
           <div className={unreadCount ? 'is-highlight' : ''}><dt>Unread</dt><dd>{unreadCount}</dd></div>
           <div><dt>Pinned</dt><dd>{pinnedCount}</dd></div>
           <div><dt>Latest</dt><dd>{latestDate ? formatDate(latestDate, { month: 'short', day: 'numeric' }) : '—'}</dd></div>
@@ -110,21 +133,21 @@ export default function Announcements() {
         </div>
 
         <div className="announcement-feed">
-          {announcementsState.loading && (
+          {feedLoading && (
             <div className="simple-empty">
               <Search size={22}/>
               <strong>Loading announcements…</strong>
               <span>Fetching the latest updates from the server.</span>
             </div>
           )}
-          {announcementsState.error && (
+          {feedError && (
             <div className="simple-empty">
               <Search size={22}/>
               <strong>Unable to load announcements</strong>
-              <span>{announcementsState.error}</span>
+              <span>{feedError}</span>
             </div>
           )}
-          {!announcementsState.loading && !announcementsState.error && filtered.map((item) => (
+          {!feedLoading && !feedError && filtered.map((item) => (
             <article className={`feed-announcement ${!item.read ? 'feed-unread' : ''}`} key={item.id}>
               {item.image && (
                 <div className="feed-announcement-thumb">
@@ -146,14 +169,20 @@ export default function Announcements() {
                   <button className="text-link" onClick={() => setSelected(item)}>
                     Read full story <ArrowUpRight size={14}/>
                   </button>
-                  <button className="mark-read-button" onClick={() => toggleRead(item)}>
-                    {item.read ? 'Mark unread' : 'Mark as read'}
-                  </button>
+                  {item.isEvent ? (
+                    <Link to="/events" className="mark-read-button">
+                      <CalendarDays size={14}/> View in calendar
+                    </Link>
+                  ) : (
+                    <button className="mark-read-button" onClick={() => toggleRead(item)}>
+                      {item.read ? 'Mark unread' : 'Mark as read'}
+                    </button>
+                  )}
                 </div>
               </div>
             </article>
           ))}
-          {!announcementsState.loading && !announcementsState.error && filtered.length === 0 && (
+          {!feedLoading && !feedError && filtered.length === 0 && (
             <div className="simple-empty">
               <Search size={22}/>
               <strong>No updates found</strong>

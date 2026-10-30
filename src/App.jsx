@@ -19,6 +19,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Login = lazy(() => import('./pages/Login'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback'));
 
 // The admin console is only reachable in HR Admin mode (server-authorized).
 function RequireHrAdmin({ children }) {
@@ -38,7 +39,8 @@ export default function App() {
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Login mode="register" />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
 
         <Route element={<AppLayout />}>
           <Route index element={<Dashboard />} />

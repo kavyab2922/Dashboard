@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, Award, CheckCircle2, Flame, Hourglass, Lightbulb, PartyPopper, Trophy, X,
+  ArrowLeft, Award, CheckCircle2, Flame, Hourglass, Lightbulb, LogOut, PartyPopper, Trophy, X,
 } from 'lucide-react';
 import { dataApi } from '../services/api';
 import { useApp } from '../context/AppContext';
@@ -44,6 +44,7 @@ export default function GamePlay() {
   const [celebrations, setCelebrations] = useState([]);
   const [hint, setHint] = useState('');
   const [hintsUsed, setHintsUsed] = useState(0);
+  const [reveals, setReveals] = useState(null);
   const [busy, setBusy] = useState(false);
   const [completionSubmitting, setCompletionSubmitting] = useState(false);
   const [nextLevelLoading, setNextLevelLoading] = useState(false);
@@ -71,6 +72,7 @@ export default function GamePlay() {
       setLevel(Number(data.puzzle.level) || level);
       setSession(data.session);
       setHintsUsed(Number(data.session?.hintsUsed) || 0);
+      setReveals(data.session?.reveals || null);
       setCompletion(data.completion || null);
       setInitialStats(statsPayload ? statsPayload.data : null);
       setLoadError('');
@@ -105,6 +107,7 @@ export default function GamePlay() {
       const payload = await dataApi.dailyGames.hint(gameId, { puzzleId: puzzle?.id, difficulty, level });
       setHint(payload.data.hint || '');
       setHintsUsed(payload.data.hintsUsed || 0);
+      setReveals(payload.data.reveals || null);
       if (session) setSession({ ...session, hintsUsed: payload.data.hintsUsed });
       return payload.data;
     } catch (err) {
@@ -209,6 +212,7 @@ export default function GamePlay() {
       setLevel(Number(data.puzzle.level) || targetLevel);
       setSession(data.session);
       setHintsUsed(Number(data.session?.hintsUsed) || 0);
+      setReveals(data.session?.reveals || null);
       setInitialStats(statsPayload ? statsPayload.data : initialStats);
       setCompletion(null);
       setDuplicateCompletion(false);
@@ -404,6 +408,7 @@ export default function GamePlay() {
                 onHint={handleHint}
                 hint={hint}
                 hintsUsed={hintsUsed}
+                reveals={reveals}
                 maxHints={session?.maxHints ?? 5}
                 busy={busy}
               />
@@ -438,11 +443,17 @@ export default function GamePlay() {
         open={confirmExit}
         onClose={() => setConfirmExit(false)}
         title="Leave this puzzle?"
-        description="Your board is only kept while this page is open."
+        className="game-exit-modal"
+        hideClose
       >
-        <div className="game-exit-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => setConfirmExit(false)}>Keep playing</button>
-          <button type="button" className="btn btn-primary" onClick={exit}>Exit</button>
+        <div className="game-exit-body">
+          <span className="game-exit-icon" aria-hidden="true"><LogOut size={22} /></span>
+          <h2>Leave this puzzle?</h2>
+          <p>Your progress on this board will be lost. Points are only awarded when you complete the puzzle.</p>
+          <div className="game-exit-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmExit(false)} autoFocus>Keep playing</button>
+            <button type="button" className="btn btn-primary game-exit-confirm" onClick={exit}>Exit game</button>
+          </div>
         </div>
       </Modal>
     </div>

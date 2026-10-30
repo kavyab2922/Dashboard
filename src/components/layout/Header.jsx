@@ -16,6 +16,29 @@ const palettes = [
   { id: 'amber', label: 'Honey Amber', color: '#d97706', desc: 'Warm & Dynamic' },
 ];
 
+// Stored notification times are fixed text ("Just now"), so derive them from created_at.
+function relativeTime(value) {
+  const time = value ? new Date(value).getTime() : NaN;
+  if (Number.isNaN(time)) return '';
+  const minutes = Math.round((Date.now() - time) / 60000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? '' : 's'} ago`;
+  const days = Math.round(hours / 24);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return new Date(time).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+}
+
+// Event notifications carry raw dates ("2026-10-30"); show them as "Fri, Oct 30".
+function prettifyDates(text) {
+  return String(text || '').replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (match, year, month, day) => {
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(date.getTime()) ? match : date.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+  });
+}
+
 export default function Header({ pageTitle, onMenuClick }) {
   const {
     theme, setTheme, colorTheme, setColorTheme, role,
@@ -344,7 +367,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                 <BirthdayConfettiLayer className="notification-header-confetti" />
                 <div>
                   <strong>Notifications</strong>
-                  <small>{unread} unread updates</small>
+                  <small>{unread ? `${unread} unread ${unread === 1 ? 'update' : 'updates'}` : 'No unread updates'}</small>
                 </div>
                 <button
                   type="button"
@@ -412,8 +435,8 @@ export default function Header({ pageTitle, onMenuClick }) {
                     </span>
                     <span>
                       <strong>{item.title}</strong>
-                      <small>{item.detail}</small>
-                      <em>{item.time}</em>
+                      <small>{prettifyDates(item.detail)}</small>
+                      <em>{relativeTime(item.created_at) || item.time}</em>
                     </span>
                     {item.type === 'birthday' ? <span className="birthday-notification-cake" aria-label="Birthday cake">🎂</span> : !item.read && <span className="unread-dot" />}
                   </button>
@@ -422,7 +445,7 @@ export default function Header({ pageTitle, onMenuClick }) {
                 <div className="search-no-results">You're all caught up.</div>
               )}
               <button className="popover-footer" onClick={() => { setNotifOpen(false); setToast('You are viewing the latest notifications.'); }}>
-                You're all caught up <span>✓</span>
+                {unread ? 'Showing your latest notifications' : <>You're all caught up <span>✓</span></>}
               </button>
             </div>
           )}

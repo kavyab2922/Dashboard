@@ -7,7 +7,7 @@ import { formatDate } from '../utils/format';
 import defaultCover from '../assets/default-cover.svg';
 
 const COVER_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-const MAX_COVER_SIZE = 5 * 1024 * 1024; // keep in sync with backend MAX_FILE_SIZE
+const MAX_PROFILE_PHOTO_SIZE = 5 * 1024 * 1024; // profile photo and cover; events allow 10 MB
 
 function formatJoiningDate(joinedDate) {
   if (!joinedDate) return 'Not available';
@@ -101,6 +101,11 @@ export default function Profile() {
       setToast('Please choose an image file.');
       return;
     }
+    if (file.size > MAX_PROFILE_PHOTO_SIZE) {
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+      setToast('Image is too large. Maximum profile photo size is 5 MB.');
+      return;
+    }
     if (avatarPreview) URL.revokeObjectURL(avatarPreview);
     setAvatarFile(file);
     setAvatarPreview(URL.createObjectURL(file));
@@ -148,7 +153,7 @@ export default function Profile() {
       setToast('Unsupported file type. Please choose a JPG, JPEG, PNG or WebP image.');
       return;
     }
-    if (file.size > MAX_COVER_SIZE) {
+    if (file.size > MAX_PROFILE_PHOTO_SIZE) {
       clearCoverPreview();
       setToast('Image is too large. Maximum cover image size is 5 MB.');
       return;

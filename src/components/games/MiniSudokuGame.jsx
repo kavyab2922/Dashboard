@@ -18,20 +18,27 @@ function conflictsFor(cells, index) {
   return clash;
 }
 
-export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hintsUsed, maxHints, busy }) {
+export default function MiniSudokuGame({ puzzle, reveals, onComplete, onHint, hint, hintsUsed, maxHints, busy }) {
   const { givens, apiDifficulty } = puzzle.config;
-  const [cells, setCells] = useState(() => givens.map((value) => value || 0));
+  // Clues plus any cells a hint has filled in; both are locked.
+  const locked = useMemo(() => givens.map((value, index) => value || Number(reveals?.cells?.[index]) || 0), [givens, reveals]);
+  const [cells, setCells] = useState(() => locked.slice());
   const [selected, setSelected] = useState(() => givens.findIndex((value) => !value));
   const [history, setHistory] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const boardRef = useRef(null);
 
   useEffect(() => {
-    setCells(givens.map((value) => value || 0));
+    setCells(locked.slice());
     setSelected(givens.findIndex((value) => !value));
     setHistory([]);
     setFeedback(null);
   }, [puzzle.id, givens]);
+
+  // Drop hint-revealed values into the board without clearing the player's other entries.
+  useEffect(() => {
+    setCells((current) => current.map((value, index) => (locked[index] && !givens[index] ? locked[index] : value)));
+  }, [locked, givens]);
 
   const clashes = useMemo(() => {
     const map = new Map();
@@ -46,17 +53,13 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
   const filled = cells.filter(Boolean).length;
 
   const setCell = useCallback((index, value) => {
-    if (givens[index]) return;
+    if (index < 0 || locked[index]) return;
     setHistory((prev) => [...prev, cells]);
     setCells((current) => current.map((cell, i) => (i === index ? value : cell)));
     setFeedback(null);
-  }, [cells, givens]);
+  }, [cells, locked]);
 
-  const erase = useCallback(() => {
-    if (selected < 0 || givens[selected]) return;
-    setHistory((prev) => [...prev, cells]);
-    setCells((current) => current.map((cell, i) => (i === selected ? 0 : cell)));
-  }, [cells, givens, selected]);
+  const erase = useCallback(() => setCell(selected, 0), [selected, setCell]);
 
   const undo = () => {
     if (!history.length) return;
@@ -66,15 +69,12 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
 
   const reset = () => {
     setHistory([]);
-    setCells(givens.map((value) => value || 0));
+    setCells(locked.slice());
     setFeedback(null);
   };
 
   const move = (delta) => {
-    setSelected((current) => {
-      const next = Math.max(0, Math.min(80, (current < 0 ? 0 : current) + delta));
-      return next;
-    });
+    setSelected((current) => Math.max(0, Math.min(80, (current < 0 ? 0 : current) + delta)));
   };
 
   const handleKey = (event) => {
@@ -83,7 +83,7 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
       setCell(selected, Number(event.key));
       return;
     }
-    if (event.key === 'Backspace' || event.key === 'Delete') {
+    if (event.key === 'Backspace' || event.key === 'Delete' || event.key === '0') {
       event.preventDefault();
       erase();
       return;
@@ -96,6 +96,14 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
   };
 
   const submit = async () => {
+    if (filled < 81) {
+      setFeedback({ tone: 'error', message: `${81 - filled} cell${81 - filled === 1 ? ' is' : 's are'} still empty.` });
+      return;
+    }
+    if (clashes.size) {
+      setFeedback({ tone: 'error', message: 'Fix the highlighted conflicts before checking.' });
+      return;
+    }
     setFeedback(null);
     const result = await onComplete({ cells });
     if (result && result.ok === false) setFeedback({ tone: 'error', message: result.message });
@@ -115,10 +123,12 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
           const row = Math.floor(index / 9);
           const col = index % 9;
           const given = Boolean(givens[index]);
+          const revealed = !given && Boolean(locked[index]);
           const conflict = clashes.has(index);
           const classes = [
             'sudoku-cell',
             given ? 'is-given' : '',
+            revealed ? 'is-revealed' : '',
             conflict ? 'is-conflict' : '',
             selected === index ? 'is-selected' : '',
             (Math.floor(row / 3) + Math.floor(col / 3)) % 2 === 0 ? 'is-box' : '',
@@ -130,11 +140,8 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
               type="button"
               key={index}
               className={classes}
-              aria-label={`Row ${row + 1}, column ${col + 1}${given ? ', clue' : ''}${value ? `, ${value}` : ', empty'}${conflict ? ', conflict' : ''}`}
-              onClick={() => {
-                setSelected(index);
-                if (!given && value) setCell(index, 0);
-              }}
+              aria-label={`Row ${row + 1}, column ${col + 1}${given ? ', clue' : revealed ? ', hint' : ''}${value ? `, ${value}` : ', empty'}${conflict ? ', conflict' : ''}`}
+              onClick={() => setSelected(index)}
             >
               {value || ''}
             </button>
@@ -148,14 +155,14 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
             type="button"
             key={digit}
             className="sudoku-pad-key"
-            disabled={selected < 0}
+            disabled={selected < 0 || Boolean(locked[selected])}
             onClick={() => setCell(selected, digit)}
             aria-label={`Enter ${digit}`}
           >
             {digit}
           </button>
         ))}
-        <button type="button" className="sudoku-pad-key is-erase" onClick={erase} disabled={selected < 0} aria-label="Erase cell">
+        <button type="button" className="sudoku-pad-key is-erase" onClick={erase} disabled={selected < 0 || Boolean(locked[selected]) || !cells[selected]} aria-label="Erase cell">
           <Eraser size={16} aria-hidden="true" />
         </button>
       </div>
@@ -168,7 +175,7 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
 
       <GameControls
         canUndo={history.length > 0}
-        canReset={filled > givens.filter(Boolean).length}
+        canReset={filled > locked.filter(Boolean).length}
         onUndo={undo}
         onReset={reset}
         onHint={onHint}
@@ -176,7 +183,7 @@ export default function MiniSudokuGame({ puzzle, onComplete, onHint, hint, hints
         onSubmit={submit}
         submitDisabled={busy}
         submitLabel="Check grid"
-        footer={<span className="game-hint-cost">{clashes.size ? `${clashes.size} cells in conflict` : 'No conflicts'}</span>}
+        footer={<span className="game-hint-cost">{clashes.size ? `${clashes.size} cells in conflict` : 'No conflicts'} · each hint fills a cell (−10%)</span>}
       />
     </div>
   );

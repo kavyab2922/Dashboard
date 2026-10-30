@@ -150,11 +150,13 @@ function toDisplayTime(value) {
   return `${hours % 12 || 12}:${String(minutes).padStart(2, '0')} ${hours < 12 ? 'AM' : 'PM'}`;
 }
 
-// Event and holiday covers: JPG/PNG/WebP, up to 7 MB, 16:9. Resolves with a preview data URL.
+// Event and holiday covers: JPG/PNG/WebP, up to 10 MB, 16:9. Resolves with a preview data URL.
+const MAX_EVENT_PHOTO_SIZE = 10 * 1024 * 1024; // keep in sync with the backend upload limit
+
 function readEventPhoto(file) {
   return new Promise((resolve, reject) => {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return reject(new Error('Upload a JPG, PNG, or WebP image.'));
-    if (file.size > 7 * 1024 * 1024) return reject(new Error('Photo must be 7 MB or smaller.'));
+    if (file.size > MAX_EVENT_PHOTO_SIZE) return reject(new Error('Photo must be 10 MB or smaller.'));
     const reader = new FileReader();
     reader.onload = () => {
       const image = new Image();
@@ -208,9 +210,12 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
   const [relatedEventDropdownPlacement, setRelatedEventDropdownPlacement] = useState('down');
   const relatedEventSelectRef = useRef(null);
 
-  const filtered = useMemo(() => collection.filter((item) => Object.values(item).join(' ').toLowerCase().includes(search.toLowerCase()) && (filter === 'All' || (item.category || item.team || 'Other') === filter)), [collection, search, filter]);
+  // Local date, not UTC, so events on today's date stay listed in every timezone.
+  const todayDate = new Date();
+  const today = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+  // Past events drop out of the managed list, matching the Upcoming events page.
+  const filtered = useMemo(() => collection.filter((item) => (type !== 'events' || !item.date || item.date >= today) && Object.values(item).join(' ').toLowerCase().includes(search.toLowerCase()) && (filter === 'All' || (item.category || item.team || 'Other') === filter)), [collection, search, filter, type, today]);
   const filterOptions = [...new Set(collection.map((item) => item.category || item.team).filter(Boolean))];
-  const today = new Date().toISOString().slice(0, 10);
   const upcomingEvents = events.filter((event) => event.date && event.date >= today);
   const clearEventDraft = () => { try { sessionStorage.removeItem(EVENT_EDITOR_DRAFT_KEY); } catch { /* storage may be unavailable */ } };
   const clearAnnouncementDraft = () => { try { sessionStorage.removeItem(ANNOUNCEMENT_EDITOR_DRAFT_KEY); } catch { /* storage may be unavailable */ } };
@@ -446,7 +451,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
   </>;
   const pickEventImage = (e) => { handleEventImage(e.target.files?.[0]); e.target.value = ''; };
   const coverUploader = <section className="pf-section">
-    <header className="pf-section-head"><span className="pf-step"><ImagePlus size={15} /></span><div><h3>Cover image</h3><p>16:9 · JPG, PNG or WebP · up to 7 MB</p></div></header>
+    <header className="pf-section-head"><span className="pf-step"><ImagePlus size={15} /></span><div><h3>Cover image</h3><p>16:9 · JPG, PNG or WebP · up to 10 MB</p></div></header>
     <div className="pf-section-body">
       {form.image ? <div className="pf-cover has-image">
         <img src={form.image} alt="Event cover preview" />
@@ -485,7 +490,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
           {formSection(2, 'Date, time & location', 'When and where people should join.', <>
             <div className="pf-grid-2"><EventField field={fieldByKey('date')} form={form} setForm={setForm} /><EventField field={fieldByKey('time')} form={form} setForm={setForm} /></div>
             <EventField field={{ ...fieldByKey('venue'), placeholder: 'Room, office or meeting link' }} form={form} setForm={setForm} />
-            <EventField field={{ ...fieldByKey('rsvp'), placeholder: 'https://', hint: 'Used by the RSVP / Join button on the event card.' }} form={form} setForm={setForm} />
+            <EventField field={{ ...fieldByKey('rsvp'), placeholder: 'https://', hint: 'Used by the Join button on the event card.' }} form={form} setForm={setForm} />
           </>)}
           {formSection(3, <>Hosts &amp; speakers{hostsRequired && <b className="required-mark" aria-hidden="true">*</b>}</>, hostsRequired ? 'Add at least one person leading this event.' : 'Optional for holidays.', hostPicker)}
         </div>
@@ -542,7 +547,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
           <ImagePlus size={15} /> {coverPreview ? 'Choose another photo' : 'Upload new cover'}
           <input type="file" accept="image/jpeg,image/png,image/webp" onChange={pickHolidayCover} />
         </label>
-        <p className="holiday-cover-hint">16:9 · JPG, PNG or WebP · up to 7 MB. The holiday's name and date stay as they are in the HR calendar.</p>
+        <p className="holiday-cover-hint">16:9 · JPG, PNG or WebP · up to 10 MB. The holiday's name and date stay as they are in the HR calendar.</p>
         {coverError && <p className="pf-error">{coverError}</p>}
       </div>
       <div className="holiday-cover-actions">

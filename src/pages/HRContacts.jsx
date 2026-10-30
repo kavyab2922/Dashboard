@@ -20,6 +20,12 @@ const buildTeamsChatUrl = (email) => (
     : null
 );
 
+const buildOutlookWebUrl = (email) => (
+  email
+    ? `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(email)}`
+    : null
+);
+
 export default function HRContacts() {
   const { contacts, contactsState, setToast, user } = useApp();
   const [search, setSearch] = useState('');
@@ -179,7 +185,12 @@ export default function HRContacts() {
 
               {contact.email && !isCurrentUser(contact) && (
                 <div className="qc-actions">
-                  <a className="btn btn-primary btn-sm" href={`mailto:${contact.email}`}>
+                  <a
+                    className="btn btn-primary btn-sm"
+                    href={buildOutlookWebUrl(contact.email)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Mail size={14}/> Email
                   </a>
                   <a className="btn btn-secondary btn-sm" href={buildTeamsChatUrl(contact.email)} aria-label={`Chat with ${contact.name} on Teams`}>

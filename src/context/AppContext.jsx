@@ -223,10 +223,15 @@ export function AppProvider({ children }) {
   const setAnnouncementRead = useCallback((id, read) =>
     run(() => dataApi.announcements.update(id, { read }), announcements.refresh), [run, announcements.refresh]);
 
-  const saveEvent = useCallback((form, id) =>
-    run(() => (id ? dataApi.events.update(id, form) : dataApi.events.create(form)), events.refresh), [run, events.refresh]);
+  const saveEvent = useCallback(async (form, id) => {
+    const result = await (id ? dataApi.events.update(id, form) : dataApi.events.create(form));
+    await events.refresh();
+    await notifications.refresh();
+    return result;
+  }, [events.refresh, notifications.refresh]);
+  // Deleting an event also removes its notification, so refresh the bell too.
   const removeEvent = useCallback((id) =>
-    run(() => dataApi.events.remove(id), events.refresh), [run, events.refresh]);
+    run(() => dataApi.events.remove(id), () => Promise.all([events.refresh(), notifications.refresh()])), [run, events.refresh, notifications.refresh]);
 
   const saveQuickLink = useCallback((form, id) =>
     run(() => (id ? dataApi.quickLinks.update(id, form) : dataApi.quickLinks.create(form)), quickLinks.refresh), [run, quickLinks.refresh]);
