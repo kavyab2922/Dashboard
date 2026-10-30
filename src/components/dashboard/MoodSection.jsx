@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Lock, Search, Sparkles, UserRoundCheck, Users, X } from 'lucide-react';
-import { Panel, PanelHeading } from '../common/UI';
+import { Panel, PanelHeading, Select } from '../common/UI';
 import { useApp } from '../../context/AppContext';
 import { dataApi } from '../../services/api';
 
@@ -42,6 +42,7 @@ export default function MoodSection() {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [query, setQuery] = useState('');
+  const [team, setTeam] = useState('all');
   const [loading, setLoading] = useState(true);
   const [employeesLoading, setEmployeesLoading] = useState(true);
   const [employeesError, setEmployeesError] = useState('');
@@ -107,13 +108,19 @@ export default function MoodSection() {
   const locked = state.locked;
   const selectedMood = MOODS.find((mood) => mood.id === state.mood);
   const currentUserId = String(user?.id || user?.employee_id || '');
-  const selectableEmployees = employees.filter((employee) => String(employee.id) !== currentUserId);
+  // Records with no name in HR come back as "Team Member"; leave them out of the picker.
+  const selectableEmployees = employees.filter((employee) => String(employee.id) !== currentUserId && employee.name && employee.name !== 'Team Member');
   const selectedSet = new Set(selectedEmployees);
+  const teamOptions = useMemo(
+    () => [...new Set(selectableEmployees.map((employee) => employee.team).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [selectableEmployees],
+  );
   const filteredEmployees = useMemo(() => {
     const value = query.trim().toLowerCase();
-    if (!value) return selectableEmployees;
-    return selectableEmployees.filter((employee) => `${employee.name || ''} ${employee.email || ''}`.toLowerCase().includes(value));
-  }, [selectableEmployees, query]);
+    return selectableEmployees
+      .filter((employee) => team === 'all' || employee.team === team)
+      .filter((employee) => !value || `${employee.name} ${employee.email || ''} ${employee.role || ''} ${employee.team || ''}`.toLowerCase().includes(value));
+  }, [selectableEmployees, query, team]);
   const selectedPeople = selectableEmployees.filter((employee) => selectedSet.has(String(employee.id)));
 
   const choose = (mood) => {
@@ -194,7 +201,10 @@ export default function MoodSection() {
             {state.visibility === 'selected' && <div className="mood-colleague-picker">
               <div className="mood-picker-heading"><div><label htmlFor="mood-colleague-search">Choose colleagues</label><small>{selectedEmployees.length} {selectedEmployees.length === 1 ? 'colleague' : 'colleagues'} selected</small></div>{selectedEmployees.length > 0 && <button type="button" className="mood-clear-all" disabled={locked} onClick={() => setSelectedEmployees([])}>Clear all</button>}</div>
               <div className="mood-selected-chips" aria-label="Selected colleagues">{selectedPeople.map((employee) => <span className="mood-selected-chip" key={employee.id}><span className="mood-chip-avatar">{employee.initials || employee.name?.slice(0, 2).toUpperCase()}</span>{employee.name}<button type="button" disabled={locked} aria-label={`Remove ${employee.name}`} onClick={() => removeEmployee(employee.id)}><X size={12}/></button></span>)}</div>
-              <label className="mood-search-field"><Search size={16}/><input id="mood-colleague-search" disabled={locked} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search colleagues by name or email…"/><kbd>/</kbd></label>
+              <div className="mood-search-row">
+                <label className="mood-search-field"><Search size={16}/><input id="mood-colleague-search" disabled={locked} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search colleagues by name or email…"/><kbd>/</kbd></label>
+                <Select className="mood-team-filter" ariaLabel="Filter colleagues by department" value={team} onChange={setTeam} options={[{ value: 'all', label: 'All departments' }, ...teamOptions]} />
+              </div>
               {employeesLoading ? <div className="mood-picker-state">Loading colleagues…</div> : employeesError ? <div className="mood-picker-state mood-picker-error"><span>{employeesError}</span><button type="button" disabled={locked} onClick={() => setEmployeeReloadKey((key) => key + 1)}>Try again</button></div> : filteredEmployees.length ? <div className="mood-colleague-results">{filteredEmployees.map((employee) => { const isSelected = selectedSet.has(String(employee.id)); return <div role="checkbox" aria-checked={isSelected} tabIndex={locked ? -1 : 0} className={`mood-colleague-result ${isSelected ? 'selected' : ''}`} key={employee.id} onClick={() => toggleEmployee(null, employee.id)} onKeyDown={(event) => { if (event.key === ' ' || event.key === 'Enter') { event.preventDefault(); toggleEmployee(null, employee.id); } }}><input type="checkbox" checked={isSelected} disabled={locked} onChange={() => toggleEmployee(null, employee.id)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${employee.name}`}/><span className="mood-result-avatar">{employee.initials || employee.name?.slice(0, 2).toUpperCase()}</span><span className="mood-result-copy"><b>{employee.name}</b><small>{employee.role || employee.team || employee.email}</small></span><span className="mood-result-check" aria-hidden="true">{isSelected ? <Check size={15}/> : <span/>}</span></div>; })}</div> : <div className="mood-picker-state">{employees.length ? 'No colleagues match your search.' : 'No employees are available.'}</div>}
               <small className="mood-picker-hint">Select one or more colleagues. Your choices remain private.</small>
             </div>}

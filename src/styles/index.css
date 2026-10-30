@@ -12505,3 +12505,12 @@ input, textarea, select {
   .event-details-facts { grid-template-columns: 1fr; }
   .event-details-actions .btn { flex: 1; justify-content: center; }
 }
+
+/* Mood colleague picker: search and department filter side by side */
+.mood-search-row { display: flex; align-items: center; gap: 8px; }
+.mood-search-row .mood-search-field { flex: 1 1 auto; min-width: 0; }
+.mood-search-row .mood-team-filter { flex: 0 0 200px; }
+@media (max-width: 560px) {
+  .mood-search-row { flex-direction: column; align-items: stretch; }
+  .mood-search-row .mood-team-filter { flex-basis: auto; }
+}
