@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { authApi, dataApi, getToken } from '../services/api';
+import { authApi, dataApi, getToken, SESSION_EXPIRED_EVENT, tokenExpiresAt } from '../services/api';
 import { normalizeUser } from '../utils/user';
 
 const AppContext = createContext(null);
@@ -88,6 +88,8 @@ export function AppProvider({ children }) {
   });
   const [userLoading, setUserLoading] = useState(() => Boolean(getToken()));
   const [sessionEnded, setSessionEnded] = useState(false);
+  // 'expired' when the 24h token ran out, so the login page can say why.
+  const [sessionEndReason, setSessionEndReason] = useState(null);
 
   // Server-granted access role (from the JWT / database via /auth/me).
   // The active mode can never exceed what the signed-in account is authorized for.
@@ -109,7 +111,8 @@ export function AppProvider({ children }) {
     if (role === 'HR Admin' && !canUseHrAdmin) setRoleState('Employee');
   }, [userLoading, role, canUseHrAdmin]);
 
-  const endSession = useCallback(() => {
+  const endSession = useCallback((reason = 'signed_out') => {
+    setSessionEndReason(['expired', 'network'].includes(reason) ? reason : 'signed_out');
     localStorage.removeItem('hrobit-auth-token');
     localStorage.removeItem('hrobit-auth-user');
     setUser(null);
@@ -131,7 +134,7 @@ export function AppProvider({ children }) {
     } catch (err) {
       if (requestToken !== getToken()) return null;
       if (err?.status === 401) {
-        endSession();
+        endSession(err.code === 'network' ? 'network' : 'expired');
       } else {
         // Keep the last known user on transient errors, but surface nothing fake.
         setToast(err.message || 'Unable to refresh your profile.');
@@ -148,6 +151,7 @@ export function AppProvider({ children }) {
   const startSession = useCallback((nextUser) => {
     const normalized = normalizeUser(nextUser);
     setSessionEnded(false);
+    setSessionEndReason(null);
     setSessionActive(true);
     setUser(normalized);
     setUserLoading(false);
@@ -155,6 +159,62 @@ export function AppProvider({ children }) {
     setSessionVersion((version) => version + 1);
     refreshUser();
   }, [refreshUser]);
+
+  // Tokens last 24 hours (JWT_EXPIRES_IN). Sign out when one expires or the server rejects it,
+  // instead of leaving every panel showing errors. Timers are throttled in background tabs,
+  // so expiry is also re-checked when the tab regains focus.
+  useEffect(() => {
+    if (!sessionActive || sessionEnded) return undefined;
+    const onExpired = (event) => endSession(event?.detail?.reason || 'expired');
+    const check = () => {
+      const expiresAt = tokenExpiresAt(getToken());
+      if (expiresAt !== null && Date.now() >= expiresAt) endSession('expired');
+    };
+    const expiresAt = tokenExpiresAt(getToken());
+    const timer = expiresAt === null ? null : window.setTimeout(check, Math.max(0, expiresAt - Date.now()) + 1000);
+    check();
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [sessionActive, sessionEnded, sessionVersion, endSession]);
+
+  // Sessions only last while on the office Wi-Fi/VPN. Only Chrome/Edge report network
+  // changes (navigator.connection), so every browser also re-checks on online/focus/
+  // tab-visible and polls every few seconds. The check is cheap (no DB).
+  // A 401 here ends the session through SESSION_EXPIRED_EVENT above.
+  useEffect(() => {
+    if (!sessionActive || sessionEnded) return undefined;
+    let retryTimer = null;
+    const check = (attempt = 0) => {
+      window.clearTimeout(retryTimer);
+      authApi.networkCheck().catch((err) => {
+        // No status = request never got through (connection still coming up mid-switch).
+        if (!err?.status && attempt < 5) retryTimer = window.setTimeout(() => check(attempt + 1), 2000);
+      });
+    };
+    const onChange = () => check();
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    const connection = navigator.connection;
+    const poll = window.setInterval(onChange, 3000);
+    window.addEventListener('online', onChange);
+    window.addEventListener('focus', onChange);
+    document.addEventListener('visibilitychange', onVisible);
+    connection?.addEventListener?.('change', onChange);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(retryTimer);
+      window.removeEventListener('online', onChange);
+      window.removeEventListener('focus', onChange);
+      document.removeEventListener('visibilitychange', onVisible);
+      connection?.removeEventListener?.('change', onChange);
+    };
+  }, [sessionActive, sessionEnded, sessionVersion]);
 
   // --- Collections (load only what the active route needs) ---
   const { pathname } = useLocation();
@@ -179,10 +239,13 @@ export function AppProvider({ children }) {
   const celebrationsLoader = useCallback(() => dataApi.celebrations.list(), []);
 
   const adminRoute = routeEnabled('/admin');
-  const announcements = useCollection(announcementsLoader, routeEnabled('/', '/announcements') || adminRoute, sessionVersion);
-  const events = useCollection(eventsLoader, routeEnabled('/', '/events', '/announcements') || adminRoute, sessionVersion);
-  const quickLinks = useCollection(quickLinksLoader, routeEnabled('/', '/quick-links') || adminRoute, sessionVersion);
-  const contacts = useCollection(contactsLoader, routeEnabled('/', '/events', '/hr-contacts') || adminRoute, sessionVersion);
+  // Global search reads these collections, so load them on any page once search has been opened.
+  const [searchUsed, setSearchUsed] = useState(false);
+  const searchLoad = enabled && searchUsed;
+  const announcements = useCollection(announcementsLoader, routeEnabled('/', '/announcements') || adminRoute || searchLoad, sessionVersion);
+  const events = useCollection(eventsLoader, routeEnabled('/', '/events', '/announcements') || adminRoute || searchLoad, sessionVersion);
+  const quickLinks = useCollection(quickLinksLoader, routeEnabled('/', '/quick-links') || adminRoute || searchLoad, sessionVersion);
+  const contacts = useCollection(contactsLoader, routeEnabled('/', '/events', '/hr-contacts') || adminRoute || searchLoad, sessionVersion);
   const kudos = useCollection(kudosLoader, routeEnabled('/', '/recognition') || adminRoute, sessionVersion);
   const notifications = useCollection(notificationsLoader, enabled, sessionVersion);
 
@@ -203,7 +266,7 @@ export function AppProvider({ children }) {
     };
   }, [enabled, notifications.refresh]);
 
-  const courses = useCollection(coursesLoader, routeEnabled('/', '/learning') || adminRoute, sessionVersion);
+  const courses = useCollection(coursesLoader, routeEnabled('/', '/learning') || adminRoute || searchLoad, sessionVersion);
   const faqs = useCollection(faqsLoader, enabled, sessionVersion);
   const games = useCollection(gamesLoader, routeEnabled('/games', '/games/*') || adminRoute, sessionVersion);
   const employees = useCollection(employeesLoader, routeEnabled('/hr-contacts') || adminRoute, sessionVersion);
@@ -282,7 +345,7 @@ export function AppProvider({ children }) {
 
   const value = {
     // session
-    user, userLoading, sessionEnded, sessionVersion, startSession, refreshUser, updateProfile, endSession,
+    user, userLoading, sessionEnded, sessionEndReason, sessionVersion, startSession, refreshUser, updateProfile, endSession,
     // collections: { items, loading, error, refresh }
     announcements: announcements.items, announcementsState: announcements,
     events: events.items, eventsState: events,
@@ -306,6 +369,8 @@ export function AppProvider({ children }) {
     theme, setTheme, colorTheme, setColorTheme, role, setRole,
     accessRole, canUseHrAdmin, isHrAdmin,
     toast, setToast,
+    searchLoading: announcements.loading || events.loading || quickLinks.loading || contacts.loading || courses.loading,
+    loadSearchData: () => setSearchUsed(true),
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

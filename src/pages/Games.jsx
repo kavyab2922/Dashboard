@@ -125,7 +125,7 @@ function BannerLeaderboard() {
     body = players.map((player, index) => (
       <div className={`banner-leaderboard-row ${MEDAL_CLASSES[index]}`} key={player.employeeKey || player.name || index}>
         <span className="banner-leaderboard-medal">{MEDALS[index]}</span>
-        <span className="banner-leaderboard-name" title={player.name}>{player.name}</span>
+        <span className="banner-leaderboard-name">{player.name}</span>
         <span className="banner-leaderboard-points">{Number(player.points ?? 0).toLocaleString()} pts</span>
       </div>
     ));

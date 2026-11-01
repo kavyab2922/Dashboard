@@ -10,6 +10,7 @@ const errorMessages = {
   network: 'Available only on the company network.',
   not_authorized: 'Your account is not set up for HROrbit. Please contact HR.',
   session: 'We could not start your session. Please sign in again.',
+  expired: 'Your session expired after 24 hours. Please sign in again.',
 };
 
 export default function Login() {

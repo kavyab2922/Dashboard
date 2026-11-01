@@ -16,6 +16,29 @@ const palettes = [
   { id: 'amber', label: 'Honey Amber', color: '#d97706', desc: 'Warm & Dynamic' },
 ];
 
+// Pages offered by global search, matched on their name and the extra keywords.
+const SEARCH_PAGES = [
+  { title: 'Dashboard', to: '/', keywords: 'home overview mood' },
+  { title: 'Announcements', to: '/announcements', keywords: 'news updates' },
+  { title: 'Upcoming events', to: '/events', keywords: 'calendar holidays meetings townhall' },
+  { title: 'Quick links', to: '/quick-links', keywords: 'resources tools leave payslip hrms links' },
+  { title: 'Quick Connect', to: '/hr-contacts', keywords: 'hr contacts help support people' },
+  { title: 'HR FAQ assistant', to: '/faq', keywords: 'chatbot questions policy help leave' },
+  { title: 'Daily games', to: '/games', keywords: 'puzzle sudoku quiz trivia word leaderboard points streak' },
+  { title: 'Learning hub', to: '/learning', keywords: 'courses training skills' },
+  { title: 'Kudos & recognition', to: '/recognition', keywords: 'appreciation thanks recognize' },
+  { title: 'Employee community', to: '/community', keywords: 'clubs groups' },
+  { title: 'My profile', to: '/profile', keywords: 'photo avatar cover about me' },
+  { title: 'Settings', to: '/settings', keywords: 'preferences theme dark mode account' },
+];
+
+const SEARCH_ICONS = { page: Command, announcement: Megaphone, event: CalendarDays, link: ArrowUpRight, person: Activity, course: Award };
+
+function SearchResultIcon({ type }) {
+  const Icon = SEARCH_ICONS[type] || Search;
+  return <Icon size={14} />;
+}
+
 // Stored notification times are fixed text ("Just now"), so derive them from created_at.
 function relativeTime(value) {
   const time = value ? new Date(value).getTime() : NaN;
@@ -43,7 +66,7 @@ export default function Header({ pageTitle, onMenuClick }) {
   const {
     theme, setTheme, colorTheme, setColorTheme, role,
     user,
-    announcements, events, quickLinks, contacts, courses,
+    announcements, events, quickLinks, contacts, courses, searchLoading, loadSearchData,
     notifications, notificationsState, markNotificationRead, markAllNotificationsRead, setToast, endSession,
     sessionVersion,
   } = useApp();
@@ -165,16 +188,22 @@ export default function Header({ pageTitle, onMenuClick }) {
   ]);
 
   const results = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return [];
+    const words = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
     const all = [
-      ...announcements.map((item) => ({ title: item.title, subtitle: 'Announcement', to: '/announcements' })),
-      ...events.map((item) => ({ title: item.title, subtitle: 'Event', to: '/events' })),
-      ...quickLinks.map((item) => ({ title: item.title, subtitle: 'Quick link', to: '/quick-links' })),
-      ...contacts.map((item) => ({ title: item.name, subtitle: item.team, to: '/hr-contacts' })),
-      ...courses.map((item) => ({ title: item.title, subtitle: item.provider, to: '/learning' })),
+      ...SEARCH_PAGES.map((page) => ({ ...page, type: 'page', subtitle: 'Page', text: `${page.title} ${page.keywords}` })),
+      ...announcements.map((item) => ({ type: 'announcement', title: item.title, subtitle: `Announcement${item.category ? ` · ${item.category}` : ''}`, to: '/announcements', text: `${item.title} ${item.category || ''} ${item.description || ''}` })),
+      ...events.map((item) => ({ type: 'event', title: item.title, subtitle: `${item.category === 'Holiday' ? 'Holiday' : 'Event'} · ${prettifyDates(item.date)}`, to: '/events', text: `${item.title} ${item.category || ''} ${item.venue || ''} ${item.description || ''}` })),
+      ...quickLinks.map((item) => ({ type: 'link', title: item.title, subtitle: 'Quick link', to: '/quick-links', text: `${item.title} ${item.description || ''} ${item.category || ''}` })),
+      ...contacts.map((item) => ({ type: 'person', title: item.name, subtitle: [item.role, item.team].filter(Boolean).join(' · ') || 'HR contact', to: '/hr-contacts', text: `${item.name} ${item.role || ''} ${item.team || ''} ${item.email || ''} ${item.focus || ''}` })),
+      ...courses.map((item) => ({ type: 'course', title: item.title, subtitle: `Course${item.provider ? ` · ${item.provider}` : ''}`, to: '/learning', text: `${item.title} ${item.provider || ''} ${item.category || ''}` })),
     ];
-    return all.filter((item) => `${item.title} ${item.subtitle}`.toLowerCase().includes(query)).slice(0, 7);
+    // Every typed word must appear; matches in the title rank above matches elsewhere.
+    return all
+      .filter((item) => item.title && words.every((word) => item.text.toLowerCase().includes(word)))
+      .map((item) => ({ ...item, rank: words.every((word) => item.title.toLowerCase().includes(word)) ? 0 : 1 }))
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 8);
   }, [search, announcements, events, quickLinks, contacts, courses]);
 
   const goResult = (to) => {
@@ -272,7 +301,7 @@ export default function Header({ pageTitle, onMenuClick }) {
           <input
             aria-label="Search HROrbit"
             value={search}
-            onFocus={() => { closeAll(); setSearchOpen(true); }}
+            onFocus={() => { closeAll(); setSearchOpen(true); loadSearchData(); }}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Search anything..."
             onKeyDown={(event) => {
@@ -289,8 +318,8 @@ export default function Header({ pageTitle, onMenuClick }) {
                 {search.trim() ? (
                   results.length ? (
                     results.map((item, index) => (
-                      <button className="search-result" key={`${item.title}-${index}`} onClick={() => goResult(item.to)}>
-                        <span className="search-result-icon"><Search size={14} /></span>
+                      <button className="search-result" key={`${item.type}-${item.title}-${index}`} onClick={() => goResult(item.to)}>
+                        <span className={`search-result-icon type-${item.type}`}><SearchResultIcon type={item.type} /></span>
                         <span>
                           <strong>{item.title}</strong>
                           <small>{item.subtitle}</small>
@@ -299,10 +328,10 @@ export default function Header({ pageTitle, onMenuClick }) {
                       </button>
                     ))
                   ) : (
-                    <div className="search-no-results">No matches found. Try another keyword.</div>
+                    <div className="search-no-results">{searchLoading ? 'Searching…' : 'No matches found. Try another keyword.'}</div>
                   )
                 ) : (
-                  <div className="search-tip">Search announcements, events, people, links and learning resources.</div>
+                  <div className="search-tip">Search pages, announcements, events, holidays, HR contacts, quick links and courses.</div>
                 )}
               </div>
             </>

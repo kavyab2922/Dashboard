@@ -51,7 +51,7 @@ export function Avatar({ name = 'Employee', initials, color = 'blue', size = '',
 
   if (resolvedSrc && !imgError) {
     return (
-      <span className={`avatar avatar-has-img ${size ? `avatar-${size}` : ''}`} aria-label={name}>
+      <span className={`avatar avatar-has-img ${size ? `avatar-${size}` : ''}`}>
         <img
           src={resolvedSrc}
           alt={name}
@@ -64,7 +64,7 @@ export function Avatar({ name = 'Employee', initials, color = 'blue', size = '',
   }
 
   return (
-    <span className={`avatar avatar-${color} ${size ? `avatar-${size}` : ''}`} aria-label={name}>
+    <span className={`avatar avatar-${color} ${size ? `avatar-${size}` : ''}`}>
       {computed}
     </span>
   );

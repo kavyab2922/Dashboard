@@ -18,6 +18,28 @@ export function getToken() {
   return localStorage.getItem('hrobit-auth-token');
 }
 
+// AppContext listens for this and sends the user back to the login page.
+export const SESSION_EXPIRED_EVENT = 'hrobit:session-expired';
+
+/** When the JWT expires (ms since epoch), read from its payload; null if unreadable. Timing only — the server still decides. */
+export function tokenExpiresAt(token) {
+  try {
+    const payload = JSON.parse(atob(String(token).split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return Number.isFinite(payload.exp) ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+// A 401 on a request that carried a token means the session is over (24h expiry, a
+// revoked token, or the user left the office network — code 'network'). A wrong
+// password at sign-in is a normal form error instead.
+function reportExpiredSession(status, hadToken, path, code) {
+  if (status === 401 && hadToken && path !== '/auth/login') {
+    window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT, { detail: { reason: code === 'network' ? 'network' : 'expired' } }));
+  }
+}
+
 /**
  * Convert backend-relative media paths to absolute URLs.
  */
@@ -59,8 +81,10 @@ async function uploadFile(file) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    reportExpiredSession(response.status, Boolean(token), '/upload', payload.code);
     const error = new Error(payload.message || 'Upload failed');
     error.status = response.status;
+    error.code = payload.code;
     throw error;
   }
 
@@ -88,8 +112,10 @@ async function request(path, options = {}) {
   const payload = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    reportExpiredSession(response.status, Boolean(token), path, payload.code);
     const error = new Error(payload.message || 'Request failed');
     error.status = response.status;
+    error.code = payload.code;
     error.data = payload.data;
     throw error;
   }
@@ -135,6 +161,11 @@ export const authApi = {
 
   me() {
     return get('/auth/me');
+  },
+
+  // 401 (code 'network') once the user is off the office Wi-Fi/VPN.
+  networkCheck() {
+    return get('/auth/network-check');
   },
 
   profile() {

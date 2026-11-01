@@ -20,7 +20,7 @@ export default function AppLayout() {
   const [pinned, setPinned] = useState(() => localStorage.getItem(SIDEBAR_PINNED_KEY) === 'true');
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem(SIDEBAR_PINNED_KEY) !== 'true');
   const location = useLocation();
-  const { toast, sessionEnded } = useApp();
+  const { toast, sessionEnded, sessionEndReason } = useApp();
   const title = titles[location.pathname] || 'Employee hub';
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function AppLayout() {
     });
   };
 
-  if (sessionEnded || !getToken()) return <Navigate to="/login" replace />;
+  if (sessionEnded || !getToken()) return <Navigate to={sessionEndReason === 'expired' || sessionEndReason === 'network' ? `/login?error=${sessionEndReason}` : '/login'} replace />;
 
   return <div className={`app-shell ${collapsed && !pinned ? 'sidebar-is-collapsed' : ''}`}>
     <Sidebar open={mobileOpen} onClose={() => setMobileOpen(false)} collapsed={collapsed} pinned={pinned} onPinToggle={handlePinToggle} onToggle={() => setCollapsed((currentCollapsed) => !currentCollapsed)} onAutoCollapse={() => { if (!pinned) setCollapsed(true); }} />
