@@ -445,7 +445,13 @@ export default function Header({ pageTitle, onMenuClick }) {
                       setNotificationReadOverrides((current) => ({ ...current, [item.id]: true }));
                       try {
                         await markNotificationRead(item.id);
-                        navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
+                        const momentMatch = String(item.detail || '').match(/moment (\d+)/i);
+                        if (String(item.type || '').startsWith('mood-') && momentMatch) {
+                          setNotifOpen(false);
+                          navigate(`/?moment=${encodeURIComponent(momentMatch[1])}`);
+                        } else {
+                          navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
+                        }
                       } catch (err) {
                         setNotificationReadOverrides((current) => {
                           const next = { ...current };

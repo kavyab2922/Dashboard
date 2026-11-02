@@ -323,6 +323,9 @@ export const dataApi = {
     team: () => get('/moods/team'),
     react: (id, reaction) =>
       post(`/moods/${id}/reactions`, { reaction }),
+    toggleLike: (id) =>
+      post(`/moods/${id}/like`, {}),
+    messages: () => get('/mood-messages'),
     sendMessage: (id, body) =>
       post(`/moods/${id}/messages`, body),
     respondToChat: (id, status) =>

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Check, ChevronDown, Search, Plus, ArrowUpRight, Sparkles } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { ArrowLeft, X, Check, ChevronDown, Search, Plus, ArrowUpRight, Sparkles } from 'lucide-react';
 
 export function PageTitle({ eyebrow, title, description, actions }) {
   return (
@@ -81,7 +81,7 @@ export function EmptyState({ icon: Icon = Search, title = 'Nothing here yet', de
   );
 }
 
-export function Modal({ open, onClose, title, description, children, wide = false, className = '', headerActions = null, closeOnLeft = false, hideClose = false }) {
+export function Modal({ open, onClose, title, description, children, wide = false, className = '', headerActions = null, closeOnLeft = false, closeIcon = 'x', hideClose = false }) {
   useEffect(() => {
     if (!open) return undefined;
     const previousOverflow = document.body.style.overflow;
@@ -89,9 +89,9 @@ export function Modal({ open, onClose, title, description, children, wide = fals
     return () => { document.body.style.overflow = previousOverflow; };
   }, [open]);
 
-  if (!open) return null;
   return (
-    <div className={`modal-backdrop ${className.includes('event-fullscreen-modal') ? 'event-fullscreen-backdrop' : className.includes('pro-form-modal') ? 'pro-form-backdrop' : className.includes('draft-list-fullscreen') ? 'draft-list-fullscreen-backdrop' : ''}`.trim()} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
+    <AnimatePresence>
+      {open && <div className={`modal-backdrop ${className.includes('event-fullscreen-modal') ? 'event-fullscreen-backdrop' : className.includes('pro-form-modal') ? 'pro-form-backdrop' : className.includes('draft-list-fullscreen') ? 'draft-list-fullscreen-backdrop' : ''}`.trim()} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose?.(); }}>
       <motion.div
         className={`modal ${wide ? 'modal-wide' : ''} ${className}`.trim()}
         role="dialog"
@@ -99,11 +99,12 @@ export function Modal({ open, onClose, title, description, children, wide = fals
         aria-label={title}
         initial={{ opacity: 0, y: 14, scale: .98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: .18 }}
+        exit={{ opacity: 0, y: 8, scale: .98 }}
+        transition={{ duration: .18, ease: 'easeOut' }}
       >
         <div className={`modal-header ${closeOnLeft ? 'modal-header-close-left' : ''} ${hideClose ? 'modal-header-no-close' : ''}`}>
-          {!hideClose && <button className="icon-button modal-close-button" aria-label="Close" title="Close" onClick={onClose}>
-            <ArrowLeft size={19} />
+          {!hideClose && <button type="button" className="icon-button modal-close-button" aria-label="Close dialog" title="Close" onClick={onClose}>
+            {closeIcon === 'back' ? <ArrowLeft size={19} /> : <X size={19} />}
           </button>}
           <div className="modal-header-copy">
             <h2>{title}</h2>
@@ -111,9 +112,10 @@ export function Modal({ open, onClose, title, description, children, wide = fals
           </div>
           {headerActions || <span className="modal-header-spacer" aria-hidden="true" />}
         </div>
-        {children}
+        <div className="modal-content">{children}</div>
       </motion.div>
-    </div>
+      </div>}
+    </AnimatePresence>
   );
 }
 
