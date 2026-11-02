@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { Activity, ArrowRight, Eye, EyeOff, Lock, Mail, ShieldCheck } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { useApp } from '../context/AppContext';
@@ -111,6 +111,7 @@ export default function Login() {
             <button className="auth-submit" type="submit" disabled={busy}>
               {busy ? 'Signing in…' : 'Sign in'} {!busy && <ArrowRight size={17} />}
             </button>
+            <p className="auth-switch"><ShieldCheck size={15} /> Available only on the company network.</p>
           </form>
 
           <small className="auth-legal">By continuing, you agree to the HROrbit terms and privacy policy.</small>
