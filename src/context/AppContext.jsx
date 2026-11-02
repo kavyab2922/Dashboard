@@ -1,0 +1,382 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { authApi, dataApi, getToken, SESSION_EXPIRED_EVENT, tokenExpiresAt } from '../services/api';
+import { normalizeUser } from '../utils/user';
+
+const AppContext = createContext(null);
+const STORAGE_KEY = 'hrobit-demo-state-v1';
+
+function loadPrefs() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function savePrefs(prefs) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs)); }
+  catch { /* preferences remain in memory if storage is unavailable */ }
+}
+
+/** Loads a backend collection and refreshes whenever the session changes. */
+function useCollection(loader, enabled = true, sessionVersion = 0) {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(enabled);
+  const [error, setError] = useState('');
+  const requestSequence = useRef(0);
+
+  const refresh = useCallback(async () => {
+    if (!enabled) {
+      setItems([]);
+      setError('');
+      setLoading(false);
+      return [];
+    }
+    const requestToken = getToken();
+    const requestId = ++requestSequence.current;
+    setLoading(true);
+    try {
+      const payload = await loader();
+      if (requestId !== requestSequence.current || requestToken !== getToken()) return [];
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      setItems(data);
+      setError('');
+      return data;
+    } catch (err) {
+      if (requestId !== requestSequence.current || requestToken !== getToken()) return [];
+      if (err?.status === 401 || err?.status === 404) {
+        setError('Your session has ended. Please sign in again.');
+      } else {
+        setError(err.message || 'Unable to load data from the server.');
+      }
+      return [];
+    } finally {
+      if (requestId === requestSequence.current && requestToken === getToken()) setLoading(false);
+    }
+  }, [loader, enabled]);
+
+  useEffect(() => {
+    if (!enabled) {
+      setItems([]);
+      setError('');
+      setLoading(false);
+      return;
+    }
+    refresh();
+  }, [refresh, enabled, sessionVersion]);
+
+  return { items, setItems, loading, error, refresh };
+}
+
+export function AppProvider({ children }) {
+  const prefs = useMemo(loadPrefs, []);
+
+  // Tracks whether a session exists (updated after login/logout)
+  const [sessionActive, setSessionActive] = useState(() => Boolean(getToken()));
+  const [sessionVersion, setSessionVersion] = useState(0);
+
+  // UI preferences (not business data) stay in local storage
+  const [theme, setTheme] = useState(prefs.theme || 'light');
+  const [colorTheme, setColorTheme] = useState(prefs.colorTheme || 'sapphire');
+  const [role, setRoleState] = useState(prefs.role || 'Employee');
+  const [savedCourses, setSavedCourses] = useState(prefs.savedCourses || []);
+  const [joinedGroups, setJoinedGroups] = useState(prefs.joinedGroups || []);
+  const [toast, setToast] = useState('');
+
+  // Current signed-in user (from the database via /auth/me)
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('hrobit-auth-user') || 'null'); }
+    catch { return null; }
+  });
+  const [userLoading, setUserLoading] = useState(() => Boolean(getToken()));
+  const [sessionEnded, setSessionEnded] = useState(false);
+  // 'expired' when the 24h token ran out, so the login page can say why.
+  const [sessionEndReason, setSessionEndReason] = useState(null);
+
+  // Server-granted access role (from the JWT / database via /auth/me).
+  // The active mode can never exceed what the signed-in account is authorized for.
+  const accessRole = user?.access_role || 'Employee';
+  const canUseHrAdmin = accessRole === 'HR Admin';
+  const isHrAdmin = role === 'HR Admin' && canUseHrAdmin;
+
+  /** Validates against the granted access role; returns false when not allowed. */
+  const setRole = useCallback((nextRole) => {
+    if (nextRole === 'HR Admin' && !canUseHrAdmin) return false;
+    setRoleState(nextRole);
+    return true;
+  }, [canUseHrAdmin]);
+
+  // Drop an HR Admin mode the signed-in account is not entitled to
+  // (e.g. a stale preference left behind by a previous session).
+  useEffect(() => {
+    if (userLoading) return;
+    if (role === 'HR Admin' && !canUseHrAdmin) setRoleState('Employee');
+  }, [userLoading, role, canUseHrAdmin]);
+
+  const endSession = useCallback((reason = 'signed_out') => {
+    setSessionEndReason(['expired', 'network'].includes(reason) ? reason : 'signed_out');
+    localStorage.removeItem('hrobit-auth-token');
+    localStorage.removeItem('hrobit-auth-user');
+    setUser(null);
+    setSessionActive(false);
+    setSessionEnded(true);
+  }, []);
+
+  const refreshUser = useCallback(async () => {
+    const requestToken = getToken();
+    if (!requestToken) { setUser(null); setUserLoading(false); return null; }
+    setUserLoading(true);
+    try {
+      const rawUser = await authApi.profile();
+      if (requestToken !== getToken()) return null;
+      const nextUser = normalizeUser(rawUser.user);
+      setUser(nextUser);
+      localStorage.setItem('hrobit-auth-user', JSON.stringify(nextUser));
+      return nextUser;
+    } catch (err) {
+      if (requestToken !== getToken()) return null;
+      if (err?.status === 401) {
+        endSession(err.code === 'network' ? 'network' : 'expired');
+      } else {
+        // Keep the last known user on transient errors, but surface nothing fake.
+        setToast(err.message || 'Unable to refresh your profile.');
+      }
+      return null;
+    } finally {
+      if (requestToken === getToken()) setUserLoading(false);
+    }
+  }, [endSession]);
+
+  useEffect(() => { refreshUser(); }, [refreshUser]);
+
+  // Called by the Login page after a successful sign-in
+  const startSession = useCallback((nextUser) => {
+    const normalized = normalizeUser(nextUser);
+    setSessionEnded(false);
+    setSessionEndReason(null);
+    setSessionActive(true);
+    setUser(normalized);
+    setUserLoading(false);
+    if (normalized) localStorage.setItem('hrobit-auth-user', JSON.stringify(normalized));
+    setSessionVersion((version) => version + 1);
+    refreshUser();
+  }, [refreshUser]);
+
+  // Tokens last 24 hours (JWT_EXPIRES_IN). Sign out when one expires or the server rejects it,
+  // instead of leaving every panel showing errors. Timers are throttled in background tabs,
+  // so expiry is also re-checked when the tab regains focus.
+  useEffect(() => {
+    if (!sessionActive || sessionEnded) return undefined;
+    const onExpired = (event) => endSession(event?.detail?.reason || 'expired');
+    const check = () => {
+      const expiresAt = tokenExpiresAt(getToken());
+      if (expiresAt !== null && Date.now() >= expiresAt) endSession('expired');
+    };
+    const expiresAt = tokenExpiresAt(getToken());
+    const timer = expiresAt === null ? null : window.setTimeout(check, Math.max(0, expiresAt - Date.now()) + 1000);
+    check();
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    window.addEventListener('focus', check);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+      window.removeEventListener('focus', check);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [sessionActive, sessionEnded, sessionVersion, endSession]);
+
+  // Sessions only last while on the office Wi-Fi/VPN. Only Chrome/Edge report network
+  // changes (navigator.connection), so every browser also re-checks on online/focus/
+  // tab-visible and polls every few seconds. The check is cheap (no DB).
+  // A 401 here ends the session through SESSION_EXPIRED_EVENT above.
+  useEffect(() => {
+    if (!sessionActive || sessionEnded) return undefined;
+    let retryTimer = null;
+    const check = (attempt = 0) => {
+      window.clearTimeout(retryTimer);
+      authApi.networkCheck().catch((err) => {
+        // No status = request never got through (connection still coming up mid-switch).
+        if (!err?.status && attempt < 5) retryTimer = window.setTimeout(() => check(attempt + 1), 2000);
+      });
+    };
+    const onChange = () => check();
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    const connection = navigator.connection;
+    const poll = window.setInterval(onChange, 3000);
+    window.addEventListener('online', onChange);
+    window.addEventListener('focus', onChange);
+    document.addEventListener('visibilitychange', onVisible);
+    connection?.addEventListener?.('change', onChange);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(retryTimer);
+      window.removeEventListener('online', onChange);
+      window.removeEventListener('focus', onChange);
+      document.removeEventListener('visibilitychange', onVisible);
+      connection?.removeEventListener?.('change', onChange);
+    };
+  }, [sessionActive, sessionEnded, sessionVersion]);
+
+  // --- Collections (load only what the active route needs) ---
+  const { pathname } = useLocation();
+  const enabled = sessionActive && !sessionEnded;
+  const routeIs = (...paths) => paths.some((path) =>
+    path.endsWith('/*')
+      ? pathname.startsWith(path.slice(0, -1))
+      : pathname === path
+  );
+  const routeEnabled = (...paths) => enabled && routeIs(...paths);
+
+  const announcementsLoader = useCallback(() => dataApi.announcements.list(), []);
+  const eventsLoader = useCallback(() => dataApi.events.list(), []);
+  const quickLinksLoader = useCallback(() => dataApi.quickLinks.list(), []);
+  const contactsLoader = useCallback(() => dataApi.contacts.list(), []);
+  const kudosLoader = useCallback(() => dataApi.kudos.list(), []);
+  const notificationsLoader = useCallback(() => dataApi.notifications.list(), []);
+  const coursesLoader = useCallback(() => dataApi.courses.list(), []);
+  const faqsLoader = useCallback(() => dataApi.faqs.list(), []);
+  const gamesLoader = useCallback(() => dataApi.games.list(), []);
+  const employeesLoader = useCallback(() => dataApi.employees.list(), []);
+  const celebrationsLoader = useCallback(() => dataApi.celebrations.list(), []);
+
+  const adminRoute = routeEnabled('/admin');
+  // Global search reads these collections, so load them on any page once search has been opened.
+  const [searchUsed, setSearchUsed] = useState(false);
+  const searchLoad = enabled && searchUsed;
+  const announcements = useCollection(announcementsLoader, routeEnabled('/', '/announcements') || adminRoute || searchLoad, sessionVersion);
+  const events = useCollection(eventsLoader, routeEnabled('/', '/events', '/announcements') || adminRoute || searchLoad, sessionVersion);
+  const quickLinks = useCollection(quickLinksLoader, routeEnabled('/', '/quick-links') || adminRoute || searchLoad, sessionVersion);
+  const contacts = useCollection(contactsLoader, routeEnabled('/', '/events', '/hr-contacts') || adminRoute || searchLoad, sessionVersion);
+  const kudos = useCollection(kudosLoader, routeEnabled('/', '/recognition') || adminRoute, sessionVersion);
+  const notifications = useCollection(notificationsLoader, enabled, sessionVersion);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+
+    const refreshNotifications = () => {
+      if (document.visibilityState === 'visible') notifications.refresh();
+    };
+    const interval = window.setInterval(refreshNotifications, 30000);
+    window.addEventListener('focus', refreshNotifications);
+    document.addEventListener('visibilitychange', refreshNotifications);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshNotifications);
+      document.removeEventListener('visibilitychange', refreshNotifications);
+    };
+  }, [enabled, notifications.refresh]);
+
+  const courses = useCollection(coursesLoader, routeEnabled('/', '/learning') || adminRoute || searchLoad, sessionVersion);
+  const faqs = useCollection(faqsLoader, enabled, sessionVersion);
+  const games = useCollection(gamesLoader, routeEnabled('/games', '/games/*') || adminRoute, sessionVersion);
+  const employees = useCollection(employeesLoader, routeEnabled('/hr-contacts') || adminRoute, sessionVersion);
+  const celebrations = useCollection(celebrationsLoader, routeEnabled('/') || adminRoute, sessionVersion);
+
+  // --- CRUD helpers: persist to the database, then refresh from the server ---
+  const run = useCallback(async (action, refresh) => {
+    const result = await action();
+    await refresh();
+    return result;
+  }, []);
+
+  const saveAnnouncement = useCallback((form, id) =>
+    run(() => (id ? dataApi.announcements.update(id, form) : dataApi.announcements.create(form)), announcements.refresh), [run, announcements.refresh]);
+  const removeAnnouncement = useCallback((id) =>
+    run(() => dataApi.announcements.remove(id), announcements.refresh), [run, announcements.refresh]);
+  const setAnnouncementRead = useCallback((id, read) =>
+    run(() => dataApi.announcements.update(id, { read }), announcements.refresh), [run, announcements.refresh]);
+
+  const saveEvent = useCallback(async (form, id) => {
+    const result = await (id ? dataApi.events.update(id, form) : dataApi.events.create(form));
+    await events.refresh();
+    await notifications.refresh();
+    return result;
+  }, [events.refresh, notifications.refresh]);
+  // Deleting an event also removes its notification, so refresh the bell too.
+  const removeEvent = useCallback((id) =>
+    run(() => dataApi.events.remove(id), () => Promise.all([events.refresh(), notifications.refresh()])), [run, events.refresh, notifications.refresh]);
+
+  const saveQuickLink = useCallback((form, id) =>
+    run(() => (id ? dataApi.quickLinks.update(id, form) : dataApi.quickLinks.create(form)), quickLinks.refresh), [run, quickLinks.refresh]);
+  const removeQuickLink = useCallback((id) =>
+    run(() => dataApi.quickLinks.remove(id), quickLinks.refresh), [run, quickLinks.refresh]);
+
+  const addKudos = useCallback(async (item) => {
+    const result = await dataApi.kudos.create(item);
+    await kudos.refresh();
+    return result;
+  }, [kudos.refresh]);
+
+  const markNotificationRead = useCallback(async (id) => {
+    await dataApi.notifications.markRead(id);
+    await notifications.refresh();
+  }, [notifications.refresh]);
+
+  const markAllNotificationsRead = useCallback(async (notificationIds = []) => {
+    await dataApi.notifications.markAllRead(notificationIds);
+    await notifications.refresh();
+  }, [notifications.refresh]);
+
+  const updateProfile = useCallback(async (changes) => {
+    await authApi.updateProfile(changes);
+    await refreshUser();
+  }, [refreshUser]);
+
+  // --- Preferences persistence (UI settings only) ---
+  useEffect(() => {
+    savePrefs({ theme, colorTheme, role, savedCourses, joinedGroups });
+  }, [theme, colorTheme, role, savedCourses, joinedGroups]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.dataset.color = colorTheme;
+  }, [colorTheme]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(''), 2800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const toggleSavedCourse = (id) => setSavedCourses((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
+
+  const value = {
+    // session
+    user, userLoading, sessionEnded, sessionEndReason, sessionVersion, startSession, refreshUser, updateProfile, endSession,
+    // collections: { items, loading, error, refresh }
+    announcements: announcements.items, announcementsState: announcements,
+    events: events.items, eventsState: events,
+    quickLinks: quickLinks.items, quickLinksState: quickLinks,
+    contacts: contacts.items, contactsState: contacts,
+    kudos: kudos.items, kudosState: kudos,
+    notifications: notifications.items, notificationsState: notifications,
+    courses: courses.items, coursesState: courses,
+    faqs: faqs.items, faqsState: faqs,
+    games: games.items, gamesState: games,
+    employees: employees.items, employeesState: employees,
+    celebrations: celebrations.items, celebrationsState: celebrations,
+    // mutations
+    saveAnnouncement, removeAnnouncement, setAnnouncementRead,
+    saveEvent, removeEvent,
+    saveQuickLink, removeQuickLink,
+    addKudos, markNotificationRead, markAllNotificationsRead,
+    // local preferences
+    savedCourses, toggleSavedCourse,
+    joinedGroups, setJoinedGroups,
+    theme, setTheme, colorTheme, setColorTheme, role, setRole,
+    accessRole, canUseHrAdmin, isHrAdmin,
+    toast, setToast,
+    searchLoading: announcements.loading || events.loading || quickLinks.loading || contacts.loading || courses.loading,
+    loadSearchData: () => setSearchUsed(true),
+  };
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+export function useApp() {
+  const context = useContext(AppContext);
+  if (!context) throw new Error('useApp must be used within AppProvider');
+  return context;
+}
