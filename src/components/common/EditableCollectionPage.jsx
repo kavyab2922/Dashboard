@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AtSign, CalendarDays, ChevronDown, Clock3, Edit3, ImagePlus, MapPin, Megaphone, Plus, Search, Trash2, X } from 'lucide-react';
+import { AtSign, CalendarDays, ChevronDown, Clock3, Edit3, ImagePlus, MapPin, Megaphone, Pin, Plus, Search, Trash2, X } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { authApi, dataApi } from '../../services/api';
 import { Button, EmptyState, FormField, Modal, PageTitle, Panel, Select, Tag } from './UI';
@@ -182,7 +182,18 @@ function EventField({ field, form, setForm }) {
 export default function EditableCollectionPage({ type = 'announcements', embedded = false, backAction = null, autoOpenCreate = false, onCreateOpened }) {
   const config = configurations[type];
   const { announcements, announcementsState, saveAnnouncement, removeAnnouncement, events, eventsState, saveEvent, removeEvent, quickLinks, quickLinksState, saveQuickLink, removeQuickLink, contacts, contactsState, setToast, isHrAdmin } = useApp();
-  const collection = type === 'announcements' ? announcements : type === 'events' ? events : type === 'quickLinks' ? quickLinks : contacts;
+  // Admins manage every announcement, past ones included; the shared list only holds current ones.
+  // Refetched whenever the shared list refreshes, which happens after each save or delete.
+  const [allAnnouncements, setAllAnnouncements] = useState(null);
+  useEffect(() => {
+    if (type !== 'announcements' || !isHrAdmin) return undefined;
+    let active = true;
+    dataApi.announcements.list({ includePast: true })
+      .then((payload) => { if (active && Array.isArray(payload?.data)) setAllAnnouncements(payload.data); })
+      .catch(() => { /* fall back to the shared list */ });
+    return () => { active = false; };
+  }, [type, isHrAdmin, announcements]);
+  const collection = type === 'announcements' ? (allAnnouncements || announcements) : type === 'events' ? events : type === 'quickLinks' ? quickLinks : contacts;
   const collectionState = type === 'announcements' ? announcementsState : type === 'events' ? eventsState : type === 'quickLinks' ? quickLinksState : contactsState;
   const readOnly = Boolean(config.readOnly) || !isHrAdmin;
   const [search, setSearch] = useState('');
@@ -345,6 +356,10 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
     } catch (err) { setToast(err.message || 'Unable to save changes.'); } finally { setUploading(false); setSaving(false); }
   };
 
+  const togglePin = async (item) => {
+    try { await saveAnnouncement({ pinned: !item.pinned }, item.id); setToast(item.pinned ? 'Announcement unpinned.' : 'Announcement pinned.'); } catch (err) { setToast(err.message || 'Unable to update the pin.'); }
+  };
+
   const remove = async (item) => {
     if (!window.confirm(`Remove “${item.title || item.name}” from the ${config.noun} list?`)) return;
     try { if (type === 'announcements') await removeAnnouncement(item.id); else if (type === 'events') await removeEvent(item.id); else await removeQuickLink(item.id); setToast(`${config.noun[0].toUpperCase()}${config.noun.slice(1)} removed.`); } catch (err) { setToast(err.message || 'Unable to remove the item.'); }
@@ -411,6 +426,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
             <div className="pf-grid-2"><EventField field={fieldByKey('category')} form={form} setForm={setForm} /><EventField field={fieldByKey('priority')} form={form} setForm={setForm} /></div>
             <EventField field={fieldByKey('date')} form={form} setForm={setForm} />
             {relatedEventPicker}
+            <label className="pf-pin-toggle"><input type="checkbox" checked={Boolean(form.pinned)} onChange={(e) => setForm((prev) => ({ ...prev, pinned: e.target.checked }))} /><span><strong>Pin to top</strong><small>Pinned announcements stay first and show on the dashboard.</small></span></label>
           </>)}
           {announcementPreview}
         </aside>
@@ -559,7 +575,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
     </Modal>}
     {embedded && <div className="management-header-row"><div>{backAction}</div><div className="management-header-actions">{draftAction}{addAction}</div></div>}
     <PageTitle eyebrow={embedded ? 'MANAGEMENT' : 'PEOPLE & CULTURE'} title={config.title} description={config.description} actions={embedded ? null : <div className="management-header-actions">{draftAction}{addAction}</div>} />
-    <Panel className={`collection-panel ${type === 'contacts' ? 'contacts-management-panel' : ''}`}><div className="collection-toolbar"><label className="inline-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${config.title.toLowerCase()}...`} /></label><Select className="collection-filter" ariaLabel="Filter by category" value={filter} onChange={setFilter} options={[{ value: "All", label: "All categories" }, ...filterOptions]} /><span className="collection-count">{filtered.length} {filtered.length === 1 ? 'item' : 'items'}</span></div>{collectionState.loading ? <p className="muted">Loading {config.title.toLowerCase()}…</p> : collectionState.error ? <div className="simple-empty"><strong>Unable to load {config.title.toLowerCase()}</strong><span>{collectionState.error}</span></div> : filtered.length === 0 ? <EmptyState icon={type === 'events' ? CalendarDays : Megaphone} title="No matching items" description="Try another search or add a new item to this list." action={readOnly ? null : <Button onClick={openCreate}><Plus size={15} /> Add {config.noun}</Button>} /> : type === 'contacts' ? <div className="contacts-grid">{filtered.map(renderContactCard)}</div> : type === 'events' ? <div className="managed-events-grid">{filtered.map(renderEventCard)}</div> : <div className="managed-list">{filtered.map((item) => <article className="managed-row" key={item.id}><span className={`managed-row-icon ${type}`}>{type === 'announcements' ? <Megaphone size={18} /> : <span>↗</span>}</span><div className="managed-row-main">{type === 'announcements' && <div className="managed-row-meta"><Tag tone={item.priority === 'High' ? 'rose' : item.priority === 'Low' ? 'gold' : 'blue'}>{item.category || 'Announcement'}</Tag>{item.date && <span>{formatDate(item.date, { month: 'short', day: 'numeric', year: 'numeric' })}</span>}</div>}<h3>{item.title || item.name}</h3><p>{item.description || item.focus || item.team || 'No description provided.'}</p></div>{!readOnly && <div className="managed-actions"><button className="icon-button" title={`Edit ${item.title || item.name}`} aria-label={`Edit ${item.title || item.name}`} onClick={() => openEdit(item)}><Edit3 size={16} /></button><button className="icon-button danger-icon" title={`Delete ${item.title || item.name}`} aria-label={`Delete ${item.title || item.name}`} onClick={() => remove(item)}><Trash2 size={16} /></button></div>}</article>)}</div>}</Panel>
+    <Panel className={`collection-panel ${type === 'contacts' ? 'contacts-management-panel' : ''}`}><div className="collection-toolbar"><label className="inline-search"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${config.title.toLowerCase()}...`} /></label><Select className="collection-filter" ariaLabel="Filter by category" value={filter} onChange={setFilter} options={[{ value: "All", label: "All categories" }, ...filterOptions]} /><span className="collection-count">{filtered.length} {filtered.length === 1 ? 'item' : 'items'}</span></div>{collectionState.loading ? <p className="muted">Loading {config.title.toLowerCase()}…</p> : collectionState.error ? <div className="simple-empty"><strong>Unable to load {config.title.toLowerCase()}</strong><span>{collectionState.error}</span></div> : filtered.length === 0 ? <EmptyState icon={type === 'events' ? CalendarDays : Megaphone} title="No matching items" description="Try another search or add a new item to this list." action={readOnly ? null : <Button onClick={openCreate}><Plus size={15} /> Add {config.noun}</Button>} /> : type === 'contacts' ? <div className="contacts-grid">{filtered.map(renderContactCard)}</div> : type === 'events' ? <div className="managed-events-grid">{filtered.map(renderEventCard)}</div> : <div className="managed-list">{filtered.map((item) => <article className="managed-row" key={item.id}><span className={`managed-row-icon ${type}`}>{type === 'announcements' ? <Megaphone size={18} /> : <span>↗</span>}</span><div className="managed-row-main">{type === 'announcements' && <div className="managed-row-meta"><Tag tone={item.priority === 'High' ? 'rose' : item.priority === 'Low' ? 'gold' : 'blue'}>{item.category || 'Announcement'}</Tag>{item.date && <span>{formatDate(item.date, { month: 'short', day: 'numeric', year: 'numeric' })}</span>}{item.pinned && <span className="pinned-label"><Pin size={12} /> Pinned</span>}</div>}<h3>{item.title || item.name}</h3><p>{item.description || item.focus || item.team || 'No description provided.'}</p></div>{!readOnly && <div className="managed-actions">{type === 'announcements' && <button className={`icon-button ${item.pinned ? 'active' : ''}`} title={item.pinned ? 'Unpin' : 'Pin to top'} aria-label={`${item.pinned ? 'Unpin' : 'Pin'} ${item.title}`} aria-pressed={Boolean(item.pinned)} onClick={() => togglePin(item)}><Pin size={16} /></button>}<button className="icon-button" title={`Edit ${item.title || item.name}`} aria-label={`Edit ${item.title || item.name}`} onClick={() => openEdit(item)}><Edit3 size={16} /></button><button className="icon-button danger-icon" title={`Delete ${item.title || item.name}`} aria-label={`Delete ${item.title || item.name}`} onClick={() => remove(item)}><Trash2 size={16} /></button></div>}</article>)}</div>}</Panel>
     <p className="demo-inline-note">{readOnly ? 'Contacts are sourced from the employee directory and cannot be edited here.' : 'Changes are saved to the company database through the API.'}</p>
     {!readOnly && (type === 'events' ? eventEditor : type === 'announcements' ? announcementEditor : <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={`${editingId ? 'Edit' : 'Add'} ${config.noun}`} description="Fill in the details for this item."><form className="form-stack" onSubmit={save}>{config.fields.map((field) => <EventField key={field.key} field={field} form={form} setForm={setForm} />)}<div className="modal-actions"><Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</Button><Button type="submit" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Add'}</Button></div></form></Modal>)}
   </>;

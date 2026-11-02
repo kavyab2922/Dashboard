@@ -9,7 +9,7 @@ import { formatDate } from '../utils/format';
 const ANNOUNCEMENT_MANAGE_KEY = 'hrobit-announcement-manage-open';
 
 export default function Announcements() {
-  const { announcements, announcementsState, events, eventsState, setAnnouncementRead, isHrAdmin, setToast } = useApp();
+  const { announcements, announcementsState, events, eventsState, setAnnouncementRead, saveAnnouncement, isHrAdmin, setToast } = useApp();
   // Stay in the manage view across a browser refresh; opening the page from a link shows the feed.
   const [manage, setManageState] = useState(() => {
     if (!canRestoreAfterRefresh('announcements-page')) return false;
@@ -69,6 +69,15 @@ export default function Announcements() {
       setToast('Announcement state updated.');
     } catch (err) {
       setToast(err.message || 'Unable to update the announcement.');
+    }
+  };
+
+  const togglePin = async (item) => {
+    try {
+      await saveAnnouncement({ pinned: !item.pinned }, item.id);
+      setToast(item.pinned ? 'Announcement unpinned.' : 'Announcement pinned.');
+    } catch (err) {
+      setToast(err.message || 'Unable to update the pin.');
     }
   };
 
@@ -176,6 +185,11 @@ export default function Announcements() {
                   ) : (
                     <button className="mark-read-button" onClick={() => toggleRead(item)}>
                       {item.read ? 'Mark unread' : 'Mark as read'}
+                    </button>
+                  )}
+                  {isHrAdmin && !item.isEvent && (
+                    <button className="mark-read-button" aria-pressed={Boolean(item.pinned)} onClick={() => togglePin(item)}>
+                      <Pin size={14}/> {item.pinned ? 'Unpin' : 'Pin to top'}
                     </button>
                   )}
                 </div>

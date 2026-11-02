@@ -182,7 +182,7 @@ export const authApi = {
 // Dashboard data APIs
 export const dataApi = {
   announcements: {
-    list: () => get('/announcements'),
+    list: ({ includePast = false } = {}) => get(includePast ? '/announcements?includePast=true' : '/announcements'),
     create: (body) => post('/announcements', body),
     update: (id, body) => put(`/announcements/${id}`, body),
     remove: (id) => del(`/announcements/${id}`),
