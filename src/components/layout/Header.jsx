@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Cake, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity, LogOut } from 'lucide-react';
+import { Bell, Cake, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, Megaphone, CalendarDays, Award, ArrowUpRight, Check, LogOut } from 'lucide-react';
 import { useBirthdayNotifications } from '../../hooks/useBirthdayNotifications';
 import { dataApi, resolveAssetUrl } from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';
@@ -290,7 +290,12 @@ export default function Header({ pageTitle, onMenuClick }) {
         </button>
 
       <Link to="/" className="topbar-brand pading-left-10">
-        <span className="topbar-brand-mark"><Activity size={21} strokeWidth={2.6} /></span>
+        <span className="topbar-brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" role="img" focusable="false">
+            <rect width="32" height="32" rx="8" fill="currentColor" />
+            <path d="M7 20c3.2 0 3.2-8 6.4-8s3.2 8 6.4 8 3.2-8 6.4-8" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        </span>
         <span className="topbar-brand-name">HROrbit</span>
       </Link>
 
