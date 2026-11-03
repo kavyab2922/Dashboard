@@ -411,7 +411,7 @@ export default function EditableCollectionPage({ type = 'announcements', embedde
     </article>
   </section>;
   const announcementEditor = <Modal open={modalOpen} onClose={() => setModalOpen(false)} closeOnLeft className="pro-form-modal" title={editingId ? 'Edit announcement' : 'New announcement'} description={editingId ? 'Update this announcement and save your changes.' : 'Write a clear workplace update for employees.'}
-    headerActions={<div className="pf-header-actions">{statusChip}<Button variant="secondary" type="button" onClick={() => { clearAnnouncementDraft(); setModalOpen(false); }}>Cancel</Button><Button type="submit" form="announcement-editor-form" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Publish'}</Button></div>}>
+    headerActions={<div className="pf-header-actions">{statusChip}<Button variant="secondary" type="button" onClick={() => setModalOpen(false)}>Save draft</Button><Button type="submit" form="announcement-editor-form" disabled={saving}>{saving ? 'Saving…' : editingId ? 'Save changes' : 'Publish'}</Button></div>}>
     <form id="announcement-editor-form" className="pf-body" onSubmit={save}>
       <div className="pf-layout">
         <div className="pf-main">

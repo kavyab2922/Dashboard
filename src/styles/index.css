@@ -12264,6 +12264,7 @@ input, textarea, select {
 .pf-status.is-editing { border-color: transparent; background: var(--primary-light); color: var(--primary); }
 
 /* Scrollable body */
+.pro-form-modal .modal-content { display: flex; flex: 1; flex-direction: column; min-height: 0; }
 .pf-body { flex: 1; min-height: 0; overflow-y: auto; }
 
 .pf-layout {
