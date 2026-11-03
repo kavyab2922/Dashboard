@@ -4,7 +4,6 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authApi } from '../services/api';
 import { useApp } from '../context/AppContext';
 
-const COMPANY_DOMAIN = 'simplify3x.com';
 
 const errorMessages = {
   network: 'Available only on the company network.',
@@ -27,11 +26,6 @@ export default function Login() {
   const signIn = async (event) => {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail.endsWith(`@${COMPANY_DOMAIN}`)) {
-      setError(`Use your @${COMPANY_DOMAIN} company email.`);
-      return;
-    }
-
     setBusy(true);
     setError('');
     try {
@@ -66,19 +60,19 @@ export default function Login() {
             <span className="auth-mobile-mark"><Activity size={18} /></span>
             <span className="auth-eyebrow">WELCOME TO HROrbit</span>
             <h2>Welcome back</h2>
-            <p>Sign in with your Simplify3x company email and password to continue to your employee hub.</p>
+            <p>Sign in with your HROrbit email and password to continue to your employee hub.</p>
           </div>
 
           <form className="auth-form" onSubmit={signIn}>
             {error && <p className="auth-error" role="alert">{error}</p>}
             <label className="auth-field">
-              Company email
+              Email
               <span className="auth-input-wrap">
                 <Mail size={17} />
                 <input
                   type="email"
                   autoComplete="username"
-                  placeholder={`name@${COMPANY_DOMAIN}`}
+                  placeholder="Enter your HROrbit email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
