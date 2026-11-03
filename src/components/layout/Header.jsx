@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, Cake, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, Megaphone, CalendarDays, Award, ArrowUpRight, Check, LogOut } from 'lucide-react';
+import { Bell, Cake, ChevronDown, Command, Menu, Moon, Palette, Search, Sun, X, Megaphone, CalendarDays, Award, ArrowUpRight, Check, Activity, LogOut } from 'lucide-react';
 import { useBirthdayNotifications } from '../../hooks/useBirthdayNotifications';
 import { dataApi, resolveAssetUrl } from '../../services/api';
 import { Link, useNavigate } from 'react-router-dom';
