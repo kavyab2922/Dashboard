@@ -445,7 +445,9 @@ export default function Header({ pageTitle, onMenuClick }) {
                       setNotificationReadOverrides((current) => ({ ...current, [item.id]: true }));
                       try {
                         await markNotificationRead(item.id);
-                        navigate(item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
+                        navigate(item.target_type === 'mood' && item.target_id
+                          ? `/?moment=${encodeURIComponent(item.target_id)}`
+                          : item.type === 'event' ? '/events' : item.type === 'kudos' ? '/recognition' : '/announcements');
                       } catch (err) {
                         setNotificationReadOverrides((current) => {
                           const next = { ...current };

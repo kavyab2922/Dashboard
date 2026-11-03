@@ -317,6 +317,8 @@ export function AppProvider({ children }) {
     await notifications.refresh();
   }, [notifications.refresh]);
 
+  const refreshNotifications = useCallback(() => notifications.refresh(), [notifications.refresh]);
+
   const updateProfile = useCallback(async (changes) => {
     await authApi.updateProfile(changes);
     await refreshUser();
@@ -362,7 +364,7 @@ export function AppProvider({ children }) {
     saveAnnouncement, removeAnnouncement, setAnnouncementRead,
     saveEvent, removeEvent,
     saveQuickLink, removeQuickLink,
-    addKudos, markNotificationRead, markAllNotificationsRead,
+    addKudos, markNotificationRead, markAllNotificationsRead, refreshNotifications,
     // local preferences
     savedCourses, toggleSavedCourse,
     joinedGroups, setJoinedGroups,

@@ -8465,7 +8465,14 @@ input, textarea, select {
 .mood-reactions { position: relative; z-index: 1; display: flex; gap: 5px; margin-top: 14px; }
 .mood-reactions button { display: inline-flex; align-items: center; gap: 3px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); font-size: 14px; }
 .mood-reactions button:hover, .mood-reactions button:focus-visible { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-glow); outline: none; }
+.mood-reactions button.reacted { border-color: var(--primary); background: var(--primary-glow); }
 .mood-reactions small { color: var(--text-muted); font-size: 10px; }
+.team-mood-comments { display: grid; gap: 9px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--border); }
+.team-mood-comment { display: flex; align-items: flex-start; gap: 8px; }
+.team-mood-comment > div { min-width: 0; flex: 1; }
+.team-mood-comment strong { display: block; color: var(--text-main); font-size: 11px; }
+.team-mood-comment p { margin-top: 2px; color: var(--text-body); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.team-mood-comment time { display: block; margin-top: 3px; color: var(--text-muted); font-size: 9px; }
 .mood-confetti { position: absolute; inset: 0; pointer-events: none; }
 .mood-confetti i { position: absolute; width: 5px; height: 10px; border-radius: 2px; background: var(--teal); animation: mood-confetti 2.8s ease-in-out infinite; }
 .mood-confetti i:nth-child(1) { left: 12%; top: -4px; background: var(--amber); }
@@ -8480,18 +8487,38 @@ input, textarea, select {
 .team-mood-skeleton { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .team-mood-skeleton span { height: 150px; border-radius: 16px; background: linear-gradient(90deg, var(--card-subtle), var(--card-hover), var(--card-subtle)); background-size: 200% 100%; animation: mood-skeleton 1.4s ease infinite; }
 @keyframes mood-skeleton { to { background-position: -200% 0; } }
-.mood-composer-body { display: grid; gap: 14px; }
-.mood-composer-recipient { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 13px; }
+.mood-composer-modal { width: min(480px, calc(100vw - 32px)); max-height: min(720px, calc(100vh - 32px)); border-radius: 18px; box-shadow: 0 24px 70px rgba(15, 23, 42, .22); }
+.mood-composer-modal .modal-header { padding: 20px 22px 14px; border-bottom: 1px solid rgba(226, 232, 240, .75); }
+.mood-composer-modal .modal-header-copy h2 { font-size: 19px; letter-spacing: -.025em; }
+.mood-composer-modal .modal-header-copy p { max-width: 360px; margin-top: 5px; line-height: 1.45; }
+.mood-composer-body { display: grid; gap: 13px; max-height: min(590px, calc(100vh - 145px)); padding: 16px 22px 20px; overflow-y: auto; }
+.mood-composer-recipient { display: flex; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid rgba(13, 148, 136, .16); border-radius: 10px; background: #f0fdfa; color: var(--text-muted); font-size: 12px; }
+.mood-composer-recipient.is-celebration { border-color: rgba(124, 58, 237, .14); background: #f5f3ff; }
 .mood-composer-recipient strong { color: var(--text-main); }
 .mood-composer-prompt { font-size: 13px; }
-.mood-message-presets { display: grid; gap: 8px; }
-.mood-message-preset { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--card-subtle); color: var(--text-body); font-size: 12px; text-align: left; }
-.mood-message-preset:hover, .mood-message-preset.selected { border-color: var(--amber); background: var(--amber-light); }
-.mood-custom-toggle { display: flex; align-items: center; gap: 8px; color: var(--text-body); font-size: 12px; }
-.mood-message-input { width: 100%; padding: 10px 12px; resize: vertical; border: 1px solid var(--border); border-radius: 10px; background: var(--card-subtle); }
+.mood-section-label { color: var(--text-muted); font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.mood-message-presets { display: grid; gap: 7px; }
+.mood-message-preset { display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 9px; min-height: 42px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: var(--text-body); font-size: 12px; line-height: 1.35; text-align: left; cursor: pointer; transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease; }
+.mood-message-preset input, .mood-custom-toggle input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.mood-message-preset:hover { border-color: #fbbf24; background: #fffbeb; transform: translateY(-1px); }
+.mood-message-preset:focus-within, .mood-message-preset.selected { border-color: var(--amber); background: var(--amber-light); box-shadow: 0 0 0 3px rgba(245, 158, 11, .12); }
+.mood-preset-check { display: grid; place-items: center; width: 17px; height: 17px; border: 1.5px solid #cbd5e1; border-radius: 5px; background: #fff; color: #fff; }
+.mood-message-preset.selected .mood-preset-check { border-color: var(--amber); background: var(--amber); }
+.mood-custom-toggle { position: relative; display: flex; align-items: center; gap: 9px; min-height: 34px; color: var(--text-body); font-size: 12px; cursor: pointer; }
+.mood-custom-toggle::before { width: 17px; height: 17px; flex: 0 0 17px; border: 1.5px solid #cbd5e1; border-radius: 5px; background: #fff; content: ''; }
+.mood-custom-toggle:has(input:checked)::before { border-color: var(--primary); background: var(--primary); box-shadow: inset 0 0 0 3px #fff; }
+.mood-custom-toggle.selected { color: var(--text-main); font-weight: 700; }
+.mood-celebration-intro { display: flex; align-items: center; gap: 9px; padding: 10px 11px; border-radius: 10px; background: linear-gradient(100deg, #f5f3ff, #fff1f2); color: #7c3aed; }
+.mood-celebration-intro p { color: var(--text-body); font-size: 12px; }
+.celebration-modal .mood-celebration-intro { animation: mood-celebration-pulse 2.6s ease-in-out infinite; }
+.mood-message-field { display: grid; gap: 6px; color: var(--text-body); font-size: 11px; font-weight: 700; }
+.mood-message-field small { color: var(--text-muted); font-size: 10px; font-weight: 500; text-align: right; }
+.mood-message-input { width: 100%; padding: 10px 12px; resize: vertical; border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text-main); font: inherit; line-height: 1.45; }
 .mood-message-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); outline: none; }
-.mood-composer-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.mood-composer-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; border-top: 1px solid rgba(226, 232, 240, .75); }
+@keyframes mood-celebration-pulse { 0%, 100% { box-shadow: 0 0 0 rgba(124, 58, 237, 0); } 50% { box-shadow: 0 0 0 4px rgba(124, 58, 237, .06); } }
 @media (max-width: 800px) { .mood-visibility-options, .team-mood-grid, .team-mood-skeleton { grid-template-columns: 1fr; } }
+@media (max-width: 540px) { .mood-composer-modal { width: calc(100vw - 20px); max-height: calc(100vh - 20px); } .mood-composer-modal .modal-header { padding: 17px 16px 12px; } .mood-composer-body { padding: 13px 16px 16px; } }
 @media (prefers-reduced-motion: reduce) {
   .mood-confetti i,
   .team-mood-skeleton span,
@@ -8499,7 +8526,8 @@ input, textarea, select {
   .wellness-balloon,
   .wellness-sparkle,
   .wellness-confetti i,
-  .wellness-celebration-card {
+  .wellness-celebration-card,
+  .celebration-modal .mood-celebration-intro {
     animation: none;
   }
 }
