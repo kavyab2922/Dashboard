@@ -2,7 +2,8 @@
  * API boundary for the HROrbit Express backend.
  * Business data is fetched from the backend and PostgreSQL.
  */
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000')
+// Deployed builds without VITE_API_URL call the backend on the same domain (/api).
+const API_BASE_URL = (import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000' : ''))
   .replace(/\/+$/, '')
   .replace(/\/api$/i, '');
 
